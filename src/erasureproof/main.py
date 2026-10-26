@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import __version__
-from .api.routes import connectors, requests, subjects, system, tenants
+from .api.routes import connectors, exposure, requests, subjects, system, tenants
 from .models.db import get_database
 
 
@@ -40,6 +40,7 @@ def create_app() -> FastAPI:
     application.include_router(subjects.router, tags=["subjects"])
     application.include_router(connectors.router, tags=["connectors"])
     application.include_router(requests.router, tags=["requests"])
+    application.include_router(exposure.router, tags=["exposure"])
 
     @application.get("/", include_in_schema=False)
     def root() -> dict[str, str]:

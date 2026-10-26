@@ -174,6 +174,10 @@ class PlanBuilder:
             decision = self.policy.decide(resource)
             self._plan_resource(resource, decision, findings, remediation, verification)
 
+        resource_categories = {r.key: r.category for r in resources}
+        for step in findings + remediation + [item[0] for item in verification]:
+            step.category = resource_categories.get(f"{step.system_id}:{step.resource_id}")
+
         incomplete = bool(findings)
         for index, (step, complete_evidence) in enumerate(verification, start=0):
             step.evidence_id = "" if incomplete else complete_evidence

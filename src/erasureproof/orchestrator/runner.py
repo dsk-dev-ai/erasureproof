@@ -13,6 +13,7 @@ from typing import Any
 
 from ..connectors.base import BaseConnector
 from ..core.attestation import AttestationService
+from ..core.graph import StepGraph, build_step_graph, optimise_plan
 from ..core.planner import build_plan
 from ..core.policy import Policy, PolicyRegistry
 from ..core.verifier import verification_passed, verify_plan
@@ -59,6 +60,7 @@ class RunResult:
     attestation: Attestation | None
     ledger_head: str
     remediation_applied: bool
+    graph: StepGraph | None = None
     errors: list[str] = field(default_factory=list)
 
     @property
@@ -70,6 +72,7 @@ class RunResult:
             "request_id": self.request_id,
             "status": self.status,
             "plan": self.plan.to_dict(),
+            "graph": self.graph.to_dict() if self.graph else None,
             "verification": [v.to_dict() for v in self.verifications],
             "actions": [action.to_dict() for action in self.actions],
             "attestation": self.attestation.to_dict() if self.attestation else None,
@@ -176,6 +179,8 @@ class ErasureOrchestrator:
             initial.flows,
             initial.backups,
         )
+        plan = optimise_plan(plan)
+        graph = build_step_graph(plan)
         self.ledger.append(
             "plan.created",
             request_id,
@@ -233,6 +238,7 @@ class ErasureOrchestrator:
             },
         )
 
+        graph = build_step_graph(plan)
         attestation: Attestation | None = None
         if attest:
             head = self.ledger.head()
@@ -246,6 +252,7 @@ class ErasureOrchestrator:
                     "subject_user_id": subject.user_id,
                     "audit_at": audit_at.isoformat(),
                     "remediation_applied": remediation_applied,
+                    "step_graph": graph.to_dict(),
                     **(extra or {}),
                 },
             )
@@ -267,6 +274,7 @@ class ErasureOrchestrator:
             attestation=attestation,
             ledger_head=self.ledger.head(),
             remediation_applied=remediation_applied,
+            graph=graph,
             errors=initial.errors + current.errors,
         )
 

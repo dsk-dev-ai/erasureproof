@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from ..models.db import ConnectorRow
 from .base import BaseConnector
 from .control import ControlConnector
+from .filesystem import FilesystemConnector
 from .postgres import PostgresConnector
 from .s3 import LocalObjectConnector, S3Connector
 from .sql import SQLConnector
@@ -21,6 +22,8 @@ _REGISTRY: dict[str, Factory] = {
     "sql": SQLConnector,
     "postgres": PostgresConnector,
     "control": ControlConnector,
+    "filesystem": FilesystemConnector,
+    "workspace": FilesystemConnector,
     "s3": S3Connector,
     "local": LocalObjectConnector,
 }

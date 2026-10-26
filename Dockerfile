@@ -10,6 +10,13 @@ COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
 COPY policies ./policies
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        poppler-utils \
+        tesseract-ocr \
+        libimage-exiftool-perl \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN pip install ".[postgres]"
 
 RUN mkdir -p /data
