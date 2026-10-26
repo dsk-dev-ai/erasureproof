@@ -1,0 +1,36 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      ERASUREPROOF_ENVIRONMENT: production
+      ERASUREPROOF_DATABASE_URL: postgresql+psycopg://erasureproof:erasureproof@db:5432/erasureproof
+      ERASUREPROOF_DATA_DIR: /data
+      ERASUREPROOF_POLICY_DIR: /app/policies
+      ERASUREPROOF_ATTESTATION_KEY: ${ERASUREPROOF_ATTESTATION_KEY:-dev-insecure-change-me}
+    volumes:
+      - erasureproof-data:/data
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: erasureproof
+      POSTGRES_PASSWORD: erasureproof
+      POSTGRES_DB: erasureproof
+    volumes:
+      - erasureproof-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erasureproof -d erasureproof"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  erasureproof-data:
+  erasureproof-pgdata:

@@ -1,0 +1,71 @@
+name: GDPR Erasure Policy
+jurisdiction: gdpr
+version: "1.0"
+
+defaults:
+  PRIMARY_ACCOUNT:
+    action: TOMBSTONE
+    redact_fields: [name, email, phone, email_hash]
+    retain_fields: [user_id]
+    reason: Replace the account with a tombstone that keeps only the stable reference.
+  TOMBSTONE:
+    action: TOMBSTONE
+    redact_fields: [name, email, phone, email_hash]
+    retain_fields: [user_id]
+    reason: Keep the tombstone; remove direct identifiers.
+  AUDIT_TRAIL:
+    action: RETAIN
+    retain_fields: [user_id]
+    reason: Audit records are required for accountability.
+  LEGAL_HOLD:
+    action: RETAIN
+    retain_fields: [user_id]
+    reason: Records under legal hold must be retained.
+  SEARCH_INDEX:
+    action: DELETE
+  ANALYTICS:
+    action: DELETE
+  SUPPORT:
+    action: DELETE
+  EXPORT:
+    action: DELETE
+  LOG:
+    action: DELETE
+  ARCHIVE:
+    action: DELETE
+  REPLICA:
+    action: DELETE
+  BACKUP:
+    action: DELETE
+
+rules:
+  - name: legal-hold-retained
+    priority: 100
+    when:
+      payload.legal_hold: true
+    action: RETAIN
+    retain_fields: [user_id]
+    reason: A legal hold overrides erasure for the affected records.
+
+  - name: retention-required
+    priority: 95
+    when:
+      payload.retention_required: true
+    action: RETAIN
+    retain_fields: [user_id]
+    reason: A statutory retention obligation applies.
+
+  - name: audit-trail-retained
+    priority: 90
+    when:
+      category: AUDIT_TRAIL
+    action: RETAIN
+    retain_fields: [user_id]
+    reason: The accountability record must survive the erasure.
+
+  - name: support-content-deleted
+    priority: 50
+    when:
+      category: SUPPORT
+    action: DELETE
+    reason: Ticket bodies and attachments containing personal data are removed.

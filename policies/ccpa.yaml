@@ -1,0 +1,64 @@
+name: CCPA/CPRA Deletion Policy
+jurisdiction: ccpa
+version: "1.0"
+
+defaults:
+  PRIMARY_ACCOUNT:
+    action: TOMBSTONE
+    redact_fields: [name, email, phone, email_hash]
+    retain_fields: [user_id]
+    reason: Keep a minimal tombstone for suppression and audit purposes.
+  TOMBSTONE:
+    action: TOMBSTONE
+    redact_fields: [name, email, phone, email_hash]
+    retain_fields: [user_id]
+    reason: Keep only the stable reference needed to honour future suppression.
+  AUDIT_TRAIL:
+    action: RETAIN
+    retain_fields: [user_id]
+    reason: Records of the deletion request itself are retained.
+  LEGAL_HOLD:
+    action: RETAIN
+    retain_fields: [user_id]
+    reason: Litigation hold overrides deletion.
+  SEARCH_INDEX:
+    action: DELETE
+  ANALYTICS:
+    action: DELETE
+  SUPPORT:
+    action: DELETE
+  EXPORT:
+    action: DELETE
+  LOG:
+    action: DELETE
+  ARCHIVE:
+    action: DELETE
+  REPLICA:
+    action: DELETE
+  BACKUP:
+    action: DELETE
+
+rules:
+  - name: legal-hold-retained
+    priority: 100
+    when:
+      payload.legal_hold: true
+    action: RETAIN
+    retain_fields: [user_id]
+    reason: A legal hold overrides deletion.
+
+  - name: transaction-retention
+    priority: 80
+    when:
+      payload.retention_required: true
+    action: RETAIN
+    retain_fields: [user_id]
+    reason: Financial records are retained for the statutory period.
+
+  - name: audit-trail-retained
+    priority: 70
+    when:
+      category: AUDIT_TRAIL
+    action: RETAIN
+    retain_fields: [user_id]
+    reason: Keep proof that the deletion request was handled.
