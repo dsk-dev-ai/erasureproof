@@ -36,8 +36,11 @@ We will acknowledge receipt within three business days and coordinate disclosure
 
 ## Deployment
 
-- Put the API behind authenticated TLS termination. The reference API has no
-  built-in authentication; add OAuth2/OIDC and per-tenant authorization.
+- Put the API and console behind authenticated TLS termination. The reference
+  API and console have no built-in authentication; add OAuth2/OIDC and
+  per-tenant authorization before exposing either one.
+- Set `ERASUREPROOF_DEMO_ENABLED=false` outside local development. The demo
+  bootstrap creates a workspace and seeds fictional records.
 - Use a dedicated database role with the minimum privileges needed by each
   connector.
 - Run connectors with read-only credentials until remediation is explicitly

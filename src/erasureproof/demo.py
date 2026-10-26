@@ -14,10 +14,13 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from sqlalchemy import select
+
 from .config import Settings, get_settings
 from .connectors.registry import load_for_tenant
 from .core.attestation import AttestationService
 from .core.identity import resolve_from_db
+from .core.normalize import classify_request
 from .core.policy import PolicyRegistry
 from .evidence.ledger import EvidenceLedger
 from .evidence.store import EvidenceStore
@@ -38,6 +41,9 @@ SUBJECT_USER_ID = "u_1001"
 CURRENT_EMAIL = "alice@example.com"
 HISTORICAL_EMAIL = "alice.old@example.com"
 CURRENT_PHONE = "+15550100"
+BOB_USER_ID = "u_2002"
+BOB_EMAIL = "bob@example.com"
+BOB_PHONE = "+15550200"
 
 
 @dataclass
@@ -253,7 +259,7 @@ def _create_control_plane(path: Path) -> None:
     )
 
 
-def seed_demo(settings: Settings | None = None) -> DemoContext:
+def seed_demo(settings: Settings | None = None, reset: bool = True) -> DemoContext:
     settings = settings or get_settings()
     settings.data_dir = Path(settings.data_dir).resolve()
     settings.data_dir.mkdir(parents=True, exist_ok=True)
@@ -270,7 +276,8 @@ def seed_demo(settings: Settings | None = None) -> DemoContext:
     _create_control_plane(control_path)
 
     database = get_database()
-    database.drop_all()
+    if reset:
+        database.drop_all()
     database.create_all()
 
     with database.session() as session:
@@ -318,6 +325,41 @@ def seed_demo(settings: Settings | None = None) -> DemoContext:
                 IdentifierRow(
                     id=new_id("idn"),
                     subject_id=subject.id,
+                    type=identifier.type.value,
+                    value=identifier.value,
+                    normalized=identifier.normalized(),
+                    valid_from=identifier.valid_from,
+                    valid_to=identifier.valid_to,
+                    source=identifier.source,
+                )
+            )
+
+        bob = Subject(
+            id=new_id("sub"),
+            tenant_id=TENANT_ID,
+            user_id=BOB_USER_ID,
+            created_at=utcnow(),
+        )
+        session.add(bob)
+        session.flush()
+        for identifier in (
+            Identifier(
+                type=IdentifierType.EMAIL,
+                value=BOB_EMAIL,
+                valid_from=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                source="account",
+            ),
+            Identifier(
+                type=IdentifierType.PHONE,
+                value=BOB_PHONE,
+                valid_from=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                source="account",
+            ),
+        ):
+            session.add(
+                IdentifierRow(
+                    id=new_id("idn"),
+                    subject_id=bob.id,
                     type=identifier.type.value,
                     value=identifier.value,
                     normalized=identifier.normalized(),
@@ -439,10 +481,14 @@ def seed_demo(settings: Settings | None = None) -> DemoContext:
         )
 
 
-def run_demo(settings: Settings | None = None) -> RunResult:
-    settings = settings or get_settings()
-    context = seed_demo(settings)
-
+def _run_request(
+    settings: Settings,
+    context: DemoContext,
+    request_id: str,
+    *,
+    email: str = CURRENT_EMAIL,
+    remediate: bool,
+) -> RunResult:
     store = EvidenceStore(settings.evidence_dir or settings.data_dir / "evidence")
     ledger = EvidenceLedger(settings.ledger_path or settings.data_dir / "ledger.jsonl")
     attestations = AttestationService(
@@ -453,9 +499,7 @@ def run_demo(settings: Settings | None = None) -> RunResult:
 
     database = get_database()
     with database.session() as session:
-        subject = resolve_from_db(
-            session, context.tenant_id, CURRENT_EMAIL, context.audit_at
-        )
+        subject = resolve_from_db(session, context.tenant_id, email, context.audit_at)
         connectors = load_for_tenant(session, context.tenant_id, store)
         orchestrator = ErasureOrchestrator(
             connectors=connectors,
@@ -466,26 +510,140 @@ def run_demo(settings: Settings | None = None) -> RunResult:
         )
         try:
             result = orchestrator.run(
-                request_id=context.request_id,
+                request_id=request_id,
                 subject=subject,
                 audit_at=context.audit_at,
                 jurisdiction="gdpr",
-                remediate=True,
+                remediate=remediate,
+                extra={"tenant_id": context.tenant_id},
             )
         finally:
             orchestrator.close()
 
-        request = session.get(RequestRow, context.request_id)
+        request = session.get(RequestRow, request_id)
         if request is not None:
             request.status = result.status
             request.plan = result.plan.to_dict()
-            request.result = {
-                "status": result.status,
-                "remediation_applied": result.remediation_applied,
-                "graph": result.graph.to_dict() if result.graph else None,
-                "verifications": [v.to_dict() for v in result.verifications],
-                "attestation": result.attestation.to_dict() if result.attestation else None,
-            }
+            request.result = result.to_dict()
             request.updated_at = utcnow()
 
     return result
+
+
+def run_demo(settings: Settings | None = None) -> RunResult:
+    settings = settings or get_settings()
+    context = seed_demo(settings)
+    return _run_request(
+        settings,
+        context,
+        context.request_id,
+        email=CURRENT_EMAIL,
+        remediate=True,
+    )
+
+
+def bootstrap_demo(settings: Settings | None = None) -> dict:
+    """Create a rich, non-destructive demo workspace for the web console."""
+
+    settings = settings or get_settings()
+    database = get_database()
+    with database.session() as session:
+        if session.get(Tenant, TENANT_ID) is not None:
+            rows = session.scalars(
+                select(RequestRow)
+                .where(RequestRow.tenant_id == TENANT_ID)
+                .order_by(RequestRow.created_at)
+            ).all()
+            return {
+                "tenant_id": TENANT_ID,
+                "created": False,
+                "requests": [
+                    {"id": row.id, "status": row.status, "email": row.email} for row in rows
+                ],
+            }
+
+    context = seed_demo(settings, reset=False)
+    now = utcnow()
+    with database.session() as session:
+        bob = session.scalar(
+            select(Subject).where(
+                Subject.tenant_id == TENANT_ID,
+                Subject.user_id == BOB_USER_ID,
+            )
+        )
+        access = RequestRow(
+            id=new_id("req"),
+            tenant_id=TENANT_ID,
+            subject_id=context.subject_id,
+            email=CURRENT_EMAIL,
+            request_text="Please send me a copy of all the personal data you hold about me.",
+            requested_at=now - timedelta(days=6),
+            audit_at=context.audit_at,
+            jurisdiction="gdpr",
+            status="NOT_APPLICABLE",
+            result={"intent": classify_request(
+                "Please send me a copy of all the personal data you hold about me."
+            ).to_dict()},
+            created_at=now - timedelta(days=6),
+            updated_at=now - timedelta(days=6),
+        )
+        session.add(access)
+
+        audit = RequestRow(
+            id=new_id("req"),
+            tenant_id=TENANT_ID,
+            subject_id=context.subject_id,
+            email=CURRENT_EMAIL,
+            request_text="Please delete my account and all of my personal data.",
+            requested_at=now - timedelta(days=3),
+            audit_at=context.audit_at,
+            jurisdiction="gdpr",
+            status="PENDING",
+            created_at=now - timedelta(days=3),
+            updated_at=now - timedelta(days=3),
+        )
+        session.add(audit)
+
+        if bob is not None:
+            session.add(
+                RequestRow(
+                    id=new_id("req"),
+                    tenant_id=TENANT_ID,
+                    subject_id=bob.id,
+                    email=BOB_EMAIL,
+                    request_text="Bitte löschen Sie mein Konto und alle meine Daten.",
+                    requested_at=now - timedelta(days=2),
+                    audit_at=context.audit_at,
+                    jurisdiction="gdpr",
+                    status="PENDING",
+                    created_at=now - timedelta(days=2),
+                    updated_at=now - timedelta(days=2),
+                )
+            )
+        session.flush()
+        audit_id = audit.id
+
+    audit_result = _run_request(
+        settings,
+        context,
+        audit_id,
+        email=CURRENT_EMAIL,
+        remediate=False,
+    )
+    full_result = _run_request(
+        settings,
+        context,
+        context.request_id,
+        email=CURRENT_EMAIL,
+        remediate=True,
+    )
+
+    return {
+        "tenant_id": TENANT_ID,
+        "created": True,
+        "audit_request_id": audit_id,
+        "complete_request_id": context.request_id,
+        "access_request_id": access.id,
+        "audit_status": audit_result.status,
+        "complete_status": full_result.status,
+    }

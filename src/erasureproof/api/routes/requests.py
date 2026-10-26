@@ -106,6 +106,25 @@ def create_request(
         return _request_out(row)
 
 
+@router.get("/v1/requests", response_model=list[RequestOut])
+def list_all_requests(
+    tenant_id: str | None = Query(default=None),
+    status_filter: str | None = Query(default=None, alias="status"),
+    limit: int = Query(default=100, ge=1, le=500),
+    database: Database = Depends(get_db),
+) -> list[RequestOut]:
+    filters = []
+    if tenant_id:
+        filters.append(RequestRow.tenant_id == tenant_id)
+    if status_filter:
+        filters.append(RequestRow.status == status_filter.upper())
+    with database.session() as session:
+        rows = session.scalars(
+            select(RequestRow).where(*filters).order_by(RequestRow.created_at.desc()).limit(limit)
+        ).all()
+        return [_request_out(row) for row in rows]
+
+
 @router.get("/v1/requests/{request_id}", response_model=RequestOut)
 def get_request(request_id: str, database: Database = Depends(get_db)) -> RequestOut:
     with database.session() as session:

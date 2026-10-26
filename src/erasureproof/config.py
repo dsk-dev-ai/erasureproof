@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     evidence_dir: Path | None = None
     ledger_path: Path | None = None
     attestation_dir: Path | None = None
+    web_dir: Path = Path("./web/dist")
 
     # Attestation signing. Use a real secret (KMS/Vault) outside local dev.
     attestation_key: str = "dev-insecure-change-me"
@@ -37,6 +38,10 @@ class Settings(BaseSettings):
     # Policy
     policy_dir: Path = Path("./policies")
     default_jurisdiction: str = "gdpr"
+
+    # The console can create a safe, non-destructive demo tenant. Disable this
+    # for any deployment that exposes the API outside a trusted environment.
+    demo_enabled: bool = True
 
     # Optional Temporal address. When unset the in-process orchestrator is used.
     temporal_address: str | None = None

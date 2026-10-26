@@ -1,0 +1,235 @@
+@import "@fontsource-variable/manrope";
+@import "@fontsource-variable/jetbrains-mono";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 38% 98%;
+    --foreground: 222 47% 9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 9%;
+    --primary: 172 72% 38%;
+    --primary-foreground: 180 30% 98%;
+    --secondary: 210 32% 93%;
+    --secondary-foreground: 222 40% 16%;
+    --muted: 210 28% 94%;
+    --muted-foreground: 215 16% 44%;
+    --accent: 168 48% 92%;
+    --accent-foreground: 174 60% 20%;
+    --destructive: 0 72% 52%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 156 66% 38%;
+    --warning: 36 92% 44%;
+    --border: 214 26% 87%;
+    --input: 214 26% 87%;
+    --ring: 172 72% 38%;
+    --radius: 0.9rem;
+    --brand: linear-gradient(130deg, #0ea5a4 0%, #14b8a6 30%, #8b5cf6 100%);
+    --mesh: radial-gradient(ellipse 55% 55% at 15% 10%, rgba(20, 184, 166, 0.16), transparent),
+      radial-gradient(ellipse 45% 45% at 90% 20%, rgba(139, 92, 246, 0.12), transparent);
+  }
+
+  .dark {
+    --background: 220 42% 5%;
+    --foreground: 210 32% 96%;
+    --card: 220 34% 8%;
+    --card-foreground: 210 32% 96%;
+    --popover: 220 34% 8%;
+    --popover-foreground: 210 32% 96%;
+    --primary: 170 72% 48%;
+    --primary-foreground: 174 80% 7%;
+    --secondary: 218 28% 13%;
+    --secondary-foreground: 210 28% 92%;
+    --muted: 218 26% 13%;
+    --muted-foreground: 215 18% 63%;
+    --accent: 218 30% 16%;
+    --accent-foreground: 210 28% 96%;
+    --destructive: 0 68% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 156 64% 50%;
+    --warning: 38 92% 56%;
+    --border: 217 24% 16%;
+    --input: 217 24% 18%;
+    --ring: 170 72% 48%;
+    --brand: linear-gradient(130deg, #2dd4bf 0%, #14b8a6 32%, #a78bfa 100%);
+    --mesh: radial-gradient(ellipse 55% 55% at 10% 0%, rgba(45, 212, 191, 0.14), transparent 60%),
+      radial-gradient(ellipse 45% 45% at 95% 12%, rgba(139, 92, 246, 0.16), transparent 60%),
+      radial-gradient(ellipse 60% 50% at 50% 100%, rgba(14, 165, 233, 0.07), transparent 65%);
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    color-scheme: dark;
+  }
+
+  html:not(.dark) {
+    color-scheme: light;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    min-height: 100vh;
+    background-image: var(--mesh);
+    background-attachment: fixed;
+    font-feature-settings: "ss01" 1, "cv02" 1, "cv03" 1;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.25);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border: 3px solid transparent;
+    background-clip: padding-box;
+    border-radius: 999px;
+  }
+
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    background: var(--brand);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .bg-brand {
+    background: var(--brand);
+  }
+
+  .glass {
+    background: hsl(var(--card) / 0.62);
+    backdrop-filter: blur(18px) saturate(145%);
+    -webkit-backdrop-filter: blur(18px) saturate(145%);
+    border: 1px solid hsl(var(--border) / 0.72);
+  }
+
+  .surface {
+    background: linear-gradient(160deg, hsl(var(--card) / 0.94), hsl(var(--card) / 0.72));
+    border: 1px solid hsl(var(--border) / 0.8);
+    box-shadow: 0 1px 0 hsl(0 0% 100% / 0.04) inset, 0 24px 70px -38px hsl(var(--primary) / 0.26);
+  }
+
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, hsl(var(--foreground) / 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--foreground) / 0.05) 1px, transparent 1px);
+    background-size: 52px 52px;
+  }
+
+  .bg-dots {
+    background-image: radial-gradient(hsl(var(--foreground) / 0.09) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  .glow {
+    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.12), 0 24px 90px -25px hsl(var(--primary) / 0.38);
+  }
+
+  .glow-soft {
+    box-shadow: 0 18px 70px -28px hsl(var(--primary) / 0.32);
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .mask-fade-x {
+    mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+  }
+}
+
+.prose-erasure {
+  @apply text-sm leading-7 text-muted-foreground;
+}
+.prose-erasure h1 {
+  @apply mb-4 mt-2 font-display text-2xl font-semibold text-foreground;
+}
+.prose-erasure h2 {
+  @apply mb-3 mt-8 font-display text-lg font-semibold text-foreground;
+}
+.prose-erasure h3 {
+  @apply mb-2 mt-6 font-semibold text-foreground;
+}
+.prose-erasure p {
+  @apply my-3;
+}
+.prose-erasure ul,
+.prose-erasure ol {
+  @apply my-3 space-y-2 pl-5;
+}
+.prose-erasure ul {
+  @apply list-disc;
+}
+.prose-erasure ol {
+  @apply list-decimal;
+}
+.prose-erasure code {
+  @apply rounded-md border border-border/70 bg-muted px-1.5 py-0.5 font-mono text-[0.82em] text-foreground;
+}
+.prose-erasure pre {
+  @apply my-4 overflow-x-auto rounded-2xl border border-border/70 bg-[#081019] p-4 text-xs text-slate-200;
+}
+.prose-erasure pre code {
+  @apply border-0 bg-transparent p-0 text-inherit;
+}
+.prose-erasure a {
+  @apply text-primary underline underline-offset-4;
+}
+.prose-erasure table {
+  @apply my-4 w-full border-collapse text-left text-sm;
+}
+.prose-erasure th {
+  @apply border-b border-border py-2 pr-4 font-semibold text-foreground;
+}
+.prose-erasure td {
+  @apply border-b border-border/60 py-2 pr-4 align-top;
+}
+.prose-erasure blockquote {
+  @apply my-4 border-l-2 border-primary/60 pl-4 text-foreground/80;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
