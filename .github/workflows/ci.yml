@@ -9,7 +9,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
       - uses: astral-sh/setup-uv@v5
+      - run: npm ci
+        working-directory: web
+      - run: npm run build
+        working-directory: web
       - run: uv venv .venv
       - run: uv pip install --python .venv/bin/python -e ".[dev]"
       - run: .venv/bin/ruff check .

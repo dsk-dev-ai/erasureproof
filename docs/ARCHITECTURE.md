@@ -17,7 +17,7 @@ or a general workflow engine. ErasureProof integrates with those systems.
 ## Components
 
 ```text
-┌──────────────────────────── API / CLI / Scheduler ────────────────────────────┐
+┌─────────────────────── Web console / API / CLI / Scheduler ────────────────────┐
 │                                                                              │
 │  Request intake ──► Intent classifier ──► Identity resolver                  │
 │                                                │                             │
@@ -55,6 +55,7 @@ or a general workflow engine. ErasureProof integrates with those systems.
 | `evidence/store.py` | Immutable snapshots under SHA-256 |
 | `evidence/ledger.py` | Append-only JSONL hash chain |
 | `orchestrator/runner.py` | The end-to-end run loop |
+| `web/` | Vite + React operations console served by FastAPI at `/console` |
 
 ## Request lifecycle
 
@@ -69,6 +70,26 @@ PENDING ──► audit ──► COMPLETE
 `audit_at` is the cutoff. Connectors must ignore records, flows and backups that
 only became visible after that time. The planner treats workflow statuses as
 claims; only discovered state and evidence count.
+
+## Web console
+
+The console is a separate Vite + React + TypeScript application in `web/`. It
+uses TanStack Query for server state, React Router for client routes, Framer
+Motion for transitions, Recharts for overview charts and Tailwind for the design
+system. It has no server-rendering tier and calls the same `/v1` API as the CLI.
+
+```text
+Browser ──► FastAPI
+              ├── /v1/*       JSON API
+              ├── /healthz    liveness
+              └── /console/*  static assets + SPA fallback
+```
+
+A production build uses `/console/` as Vite's base. FastAPI serves hashed assets
+with immutable caching and returns `index.html` for unknown client routes. The
+console can be built independently (`make web-build`) and is copied into the
+Docker image in a multi-stage build. When `web/dist` is absent, API routes and
+OpenAPI docs remain available and the console route reports that it is not built.
 
 ## Data model
 

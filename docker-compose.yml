@@ -1,6 +1,8 @@
 services:
   api:
-    build: .
+    build:
+      context: .
+      network: host
     ports:
       - "8000:8000"
     environment:
@@ -8,6 +10,8 @@ services:
       ERASUREPROOF_DATABASE_URL: postgresql+psycopg://erasureproof:erasureproof@db:5432/erasureproof
       ERASUREPROOF_DATA_DIR: /data
       ERASUREPROOF_POLICY_DIR: /app/policies
+      ERASUREPROOF_WEB_DIR: /app/web/dist
+      ERASUREPROOF_DEMO_ENABLED: ${ERASUREPROOF_DEMO_ENABLED:-true}
       ERASUREPROOF_ATTESTATION_KEY: ${ERASUREPROOF_ATTESTATION_KEY:-dev-insecure-change-me}
     volumes:
       - erasureproof-data:/data

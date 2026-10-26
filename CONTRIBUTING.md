@@ -9,6 +9,7 @@ uv venv .venv
 uv pip install --python .venv/bin/python -e ".[dev]"
 .venv/bin/pytest
 .venv/bin/ruff check .
+cd web && npm ci && npm run typecheck && npm run build
 ```
 
 ## Project layout
@@ -24,6 +25,12 @@ src/erasureproof/
 ├── config.py      Environment-driven settings
 ├── demo.py        Seeded end-to-end scenario
 └── cli.py         `erasureproof` command
+
+web/               Vite + React operations console
+├── src/pages/     Landing, dashboard, requests, evidence, settings, docs
+├── src/components/ Layout, UI primitives, graph, request dialogs
+├── src/content/   In-app Markdown documentation
+└── src/lib/       Typed API client, hooks and domain types
 ```
 
 ## Adding a connector
@@ -58,12 +65,13 @@ before category rules.
 - Unit tests for pure logic (intent, policy, planner, verifier).
 - Connector tests against temporary SQLite/object-store fixtures.
 - Ledger and attestation tamper tests.
-- API tests via `fastapi.testclient`.
+- API tests via `fastapi.testclient`, including `/console` SPA fallback.
 - The demo test must end in `COMPLETE` with every verification passing.
+- Type-check and production-build the console for routes, API types and asset base.
 
 ## Pull requests
 
 - Keep changes focused and deterministic.
-- Run `pytest` and `ruff check .` before opening a PR.
+- Run `make check` before opening a PR.
 - Explain the policy or evidence implications of connector changes.
 - Do not include real personal data, customer credentials or golden labels.

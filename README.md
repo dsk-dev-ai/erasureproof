@@ -14,16 +14,19 @@ row. ErasureProof treats those statuses as claims. It proves the state of every
 copy at a point in time — including active sync jobs and restorable backups that
 can recreate data after deletion.
 
-The `0.2` line adds three capabilities that matter after the first database row
-is gone:
+The `0.3` line adds a complete, self-hosted web console plus the capabilities that
+matter after the first database row is gone:
 
+- **A full console** for overview metrics, request audits, identity graphs,
+  remediation plans, evidence inspection, ledger verification, policy review,
+  and demo discovery.
 - **Evidence intelligence** for PDFs, images, OCR, Office files, archives,
   SQLite snapshots, metadata and free text, with subject matching over current
   and historical identifiers.
 - **Authorized exposure discovery** for public URLs, web archives, search APIs,
   breach metadata and public profiles — passive checks only, disabled by default.
 - **A step dependency graph** that makes remediation ordering inspectable and
-  renderable as Mermaid, Graphviz DOT or JSON.
+  renderable as Mermaid, Graphviz DOT or JSON, or interactively in the console.
 
 ## Why this exists
 
@@ -126,14 +129,51 @@ Useful follow-ups:
 # OpenAPI docs: http://localhost:8000/docs
 ```
 
-### Run with Docker
+### Run the web console
+
+The console is a Vite + React application in `web/`. It ships a landing page, an
+operations dashboard, request audits, a remediation dependency graph, identity
+and connector views, evidence/ledger inspection, passive exposure scanning,
+policy configuration, and built-in product documentation.
+
+```bash
+cd web
+npm install
+npm run dev
+# Console: http://localhost:5173
+# API proxy: http://localhost:8000
+```
+
+For a production build served by FastAPI:
+
+```bash
+cd web
+npm run build
+cd ..
+.venv/bin/erasureproof serve
+# Console: http://localhost:8000/console
+```
+
+The Vite build requires Node 20 or newer and uses `/console/` as its production
+base. FastAPI serves hashed assets with immutable caching and falls back to
+`index.html` for client routes.
+Seed the non-destructive demo workspace from the landing page or with:
+
+```bash
+curl -X POST http://localhost:8000/v1/demo/seed
+```
+
+### Docker
 
 ```bash
 docker compose up --build
-# API:   http://localhost:8000
-# Docs:  http://localhost:8000/docs
-# Postgres is provisioned automatically.
+# Console: http://localhost:8000/console
+# API:     http://localhost:8000
+# Docs:    http://localhost:8000/docs
 ```
+
+The image uses a multi-stage build: Node builds the console, then the Python
+runtime bundles the static assets with OCR and document tooling.
 
 Create a tenant, register connectors, submit a request and run it:
 
@@ -315,6 +355,8 @@ Copy `.env.example` to `.env` and adjust:
 ```text
 ERASUREPROOF_DATABASE_URL=sqlite:///./.erasureproof/erasureproof.db
 ERASUREPROOF_DATA_DIR=./.erasureproof
+ERASUREPROOF_WEB_DIR=./web/dist
+ERASUREPROOF_DEMO_ENABLED=true
 ERASUREPROOF_ATTESTATION_KEY=change-me
 ERASUREPROOF_POLICY_DIR=./policies
 ERASUREPROOF_DEFAULT_JURISDICTION=gdpr
@@ -333,8 +375,7 @@ SQLite is the default so the demo needs no external services. Set a
 ## Development
 
 ```bash
-.venv/bin/pytest
-.venv/bin/ruff check .
+make check   # ruff + pytest + console typecheck/build
 ```
 
 The test suite covers intent classification, identity resolution, policy
@@ -343,6 +384,31 @@ scanning, filesystem redaction, exposure authorization/scoring with fake HTTP,
 SQL/object-store remediation, ledger tamper detection, attestation signature
 verification, the API and the full demo. OCR tests are skipped when host OCR
 tools are unavailable.
+
+## Web console
+
+The console reads the same REST API as the CLI. It contains:
+
+| View | Purpose |
+|---|---|
+| Landing | Product overview and one-click demo bootstrap. |
+| Overview | Status mix, audit trend, verification rate, risk, recent audits, and live ledger. |
+| Requests | Search, filters, intent state, and audit cutoff. |
+| Request detail | Findings, remediation plan, dependency graph, evidence, verification, and signed attestation. |
+| Subjects | Current and historical identifiers resolved into stable subjects. |
+| Connectors | Source inventory and connection configuration. |
+| Exposure | Authorized passive scan of public sources with safety guardrails. |
+| Evidence & ledger | Artifact integrity checks, hash-chain verification, and the policy matrix. |
+| Settings | Theme, workspace, runtime, and environment configuration. |
+| Docs | Product, architecture, API, deployment, and security documentation. |
+
+Animation is implemented with Framer Motion, charts with Recharts, and server
+state with TanStack Query. The UI respects `prefers-reduced-motion` and includes
+a keyboard command palette (`Cmd/Ctrl+K`).
+
+## Changelog
+
+See [`CHANGELOG.md`](CHANGELOG.md) for release history.
 
 ## Design decisions
 

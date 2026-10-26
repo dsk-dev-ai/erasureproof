@@ -25,6 +25,10 @@ htmlcov/
 *.pem
 *.key
 
+# Node / frontend
+node_modules/
+*.tsbuildinfo
+
 # OS / editor
 .DS_Store
 .idea/
