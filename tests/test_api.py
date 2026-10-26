@@ -34,7 +34,7 @@ def _request(tenant_id: str, text: str) -> dict:
 def test_health_and_connector_types() -> None:
     assert client.get("/healthz").json()["status"] == "ok"
     types = client.get("/v1/connector-types").json()["types"]
-    assert {"sql", "postgres", "local", "s3", "control"} <= set(types)
+    assert {"sql", "postgres", "local", "s3", "control", "filesystem"} <= set(types)
 
 
 def test_non_deletion_request_is_not_applicable() -> None:
@@ -69,6 +69,38 @@ def test_deletion_request_with_no_connectors_completes() -> None:
     ).verify_file(run["attestation"]["path"])
     assert valid
     assert payload["request_id"] == request["id"]
+
+
+def test_exposure_endpoint_is_disabled_by_default() -> None:
+    response = client.post(
+        "/v1/exposure/scan",
+        json={
+            "email": "alice@example.com",
+            "collectors": ["direct"],
+            "authorized": True,
+        },
+    )
+    assert response.status_code == 403
+    assert "disabled" in response.json()["detail"]
+
+
+def test_request_graph_endpoint_renders_json_mermaid_and_dot() -> None:
+    tenant = _tenant()
+    request = _request(tenant, "Please delete my account.")
+    client.post(f"/v1/requests/{request['id']}/run")
+
+    graph = client.get(f"/v1/requests/{request['id']}/graph")
+    assert graph.status_code == 200
+    payload = graph.json()
+    assert payload["request_id"] == request["id"]
+    assert "nodes" in payload and "order" in payload
+
+    mermaid = client.get(f"/v1/requests/{request['id']}/graph?format=mermaid")
+    assert mermaid.status_code == 200
+    assert mermaid.text.startswith("flowchart TD")
+    dot = client.get(f"/v1/requests/{request['id']}/graph?format=dot")
+    assert dot.status_code == 200
+    assert dot.text.startswith("digraph erasureproof")
 
 
 def test_ledger_endpoint_verifies() -> None:

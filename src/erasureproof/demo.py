@@ -482,6 +482,7 @@ def run_demo(settings: Settings | None = None) -> RunResult:
             request.result = {
                 "status": result.status,
                 "remediation_applied": result.remediation_applied,
+                "graph": result.graph.to_dict() if result.graph else None,
                 "verifications": [v.to_dict() for v in result.verifications],
                 "attestation": result.attestation.to_dict() if result.attestation else None,
             }

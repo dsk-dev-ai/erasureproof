@@ -5,10 +5,12 @@ from __future__ import annotations
 from datetime import timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import PlainTextResponse
 from sqlalchemy import select
 
 from ...config import get_settings
 from ...connectors.registry import load_for_tenant
+from ...core.graph import build_step_graph, plan_from_dict
 from ...core.identity import resolve_from_db, resolve_graph
 from ...core.normalize import classify_request
 from ...models.db import Database, IdentifierRow, RequestRow, Subject, Tenant, new_id
@@ -60,6 +62,7 @@ def _stored_response(row: RequestRow) -> RunResponse:
         request_id=row.id,
         status=row.status,
         plan=plan,
+        graph=stored.get("graph"),
         verification=stored.get("verification", stored.get("verifications", [])),
         actions=stored.get("actions", []),
         attestation=stored.get("attestation"),
@@ -255,3 +258,36 @@ def get_attestation(
             path=stored["path"],
             payload=stored["payload"],
         )
+
+
+@router.get("/v1/requests/{request_id}/graph")
+def get_request_graph(
+    request_id: str,
+    format: str = Query(default="json", pattern="^(json|mermaid|dot)$"),
+    database: Database = Depends(get_db),
+):
+    with database.session() as session:
+        row = session.get(RequestRow, request_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="request not found")
+        if not row.plan:
+            raise HTTPException(status_code=404, detail="request has no plan yet")
+        plan_data = dict(row.plan)
+        stored_graph = (row.result or {}).get("graph") or {}
+        categories = {
+            int(node["step_no"]): node.get("category")
+            for node in stored_graph.get("nodes", [])
+            if node.get("category") and str(node.get("step_no", "")).isdigit()
+        }
+        if categories:
+            plan_data["steps"] = [
+                {**step, "category": categories.get(int(step.get("step_no", -1)))}
+                for step in plan_data.get("steps", [])
+            ]
+        plan = plan_from_dict(plan_data)
+        graph = build_step_graph(plan)
+        if format == "mermaid":
+            return PlainTextResponse(graph.to_mermaid(), media_type="text/plain")
+        if format == "dot":
+            return PlainTextResponse(graph.to_dot(), media_type="text/plain")
+        return graph.to_dict()

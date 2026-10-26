@@ -14,6 +14,17 @@ row. ErasureProof treats those statuses as claims. It proves the state of every
 copy at a point in time — including active sync jobs and restorable backups that
 can recreate data after deletion.
 
+The `0.2` line adds three capabilities that matter after the first database row
+is gone:
+
+- **Evidence intelligence** for PDFs, images, OCR, Office files, archives,
+  SQLite snapshots, metadata and free text, with subject matching over current
+  and historical identifiers.
+- **Authorized exposure discovery** for public URLs, web archives, search APIs,
+  breach metadata and public profiles — passive checks only, disabled by default.
+- **A step dependency graph** that makes remediation ordering inspectable and
+  renderable as Mermaid, Graphviz DOT or JSON.
+
 ## Why this exists
 
 - **Ghost data is normal.** Replicas, search indexes, analytics pipelines,
@@ -51,13 +62,16 @@ Request ──► Intent classifier ──► Identity graph (current + historic
    reunited into one subject graph, so old identifiers still found in logs and
    analytics are in scope.
 3. **Discovery.** Connectors enumerate matching records, active data flows and
-   restore points. Each snapshot is written to a content-addressed evidence
-   store.
+   restore points. The filesystem connector extracts PDF text, image OCR,
+   Office/archive members, SQLite snapshots, EXIF and printable strings, so a
+   match does not depend on a filename. Each snapshot is written to a
+   content-addressed evidence store.
 4. **Policy.** A YAML policy maps each category to `DELETE`, `REDACT`,
    `ANONYMIZE`, `RETAIN` or `TOMBSTONE`. Legal holds and retention obligations
    override erasure.
 5. **Planning.** Findings cite evidence. Remediation disables flows and blocks
    restores first, then removes downstream copies before their source records.
+   A dependency graph validates the order and exposes a critical path.
 6. **Verification.** The engine re-discovers state after remediation and checks
    every expected outcome; it does not trust action success flags.
 7. **Attestation.** The outcome, plan and verification results are canonicalised,
@@ -94,8 +108,15 @@ Useful follow-ups:
 
 ```bash
 .venv/bin/erasureproof demo --json
+.venv/bin/erasureproof demo --graph   # Mermaid step DAG
 .venv/bin/erasureproof ledger verify
 .venv/bin/erasureproof attestation verify .erasureproof/attestations/<request_id>.attestation.json
+
+# Scan an export directory for current or historical identifiers.
+.venv/bin/erasureproof scan ./exports --email alice@example.com --name "Alice Example"
+
+# Render a stored plan/result as a graph.
+.venv/bin/erasureproof graph result.json --format dot
 ```
 
 ### Run the API
@@ -164,6 +185,7 @@ Built-in connectors:
 | `sql` | SQLite, Postgres, MySQL and any SQLAlchemy URL |
 | `postgres` | Postgres-aware SQL connector |
 | `local` | Local object-store directory (exports, attachments, logs) |
+| `filesystem` / `workspace` | Directory tree with PDF/OCR/archive/SQLite extraction and redaction |
 | `s3` | S3-compatible bucket (`pip install -e ".[s3]"`) |
 | `control` | JSON control plane for sync jobs and backup restore points |
 
@@ -199,6 +221,81 @@ Actions:
 | `RETAIN` | Keep the record (legal hold, audit, statutory retention) |
 | `TOMBSTONE` | Keep the stable subject reference, remove direct identifiers |
 
+## Evidence intelligence
+
+The `intelligence` package is intentionally local and deterministic:
+
+| Input | What is extracted |
+|---|---|
+| Text, JSON, CSV, HTML, XML, logs | Full text plus bounded context snippets |
+| PDF | Embedded text; page OCR fallback via `pdftoppm` + `tesseract` |
+| Images | OCR text and EXIF metadata (GPS fields are not copied into findings) |
+| DOCX/XLSX/PPTX | Office XML text, comments and document metadata |
+| ZIP/TAR/GZ | Bounded member extraction, recursion depth and size caps |
+| SQLite | Table names, schema and text columns, bounded row sampling |
+| Unknown binaries | Printable strings fallback, marked low confidence |
+
+Matches are mapped to normalized emails, phones, email hashes, handles, URLs,
+IPs and other identifiers. Output is masked by default; raw evidence stays in the
+content-addressed store and is referenced by `evidence_id`. Scanned trees are
+read-only and symlinks are never followed.
+
+`scan` writes evidence under `.erasureproof/evidence/`, enforces a file limit,
+and never writes into the scanned directory. OCR requires `tesseract` and
+`pdftoppm` on `PATH`; PDF text extraction works without them.
+
+## Authorized exposure discovery
+
+Exposure checks are **off by default** and require explicit per-scan approval.
+They are passive: ErasureProof reads public sources, never bypasses
+authentication, never exploits a target and never downloads breach dumps.
+
+```bash
+export ERASUREPROOF_EXPOSURE_ENABLED=true
+.venv/bin/erasureproof exposure \
+  --email alice@example.com \
+  --url https://example.com/team \
+  --authorized
+```
+
+Collectors:
+
+| Collector | What it checks |
+|---|---|
+| `direct` | Operator-supplied public URLs |
+| `wayback` | Internet Archive CDX snapshots for supplied URLs |
+| `search` | Serper or Brave search APIs for quoted identifiers |
+| `hibp` | Have I Been Pwned breach metadata (no passwords) |
+| `github` | GitHub code search using a token |
+| `gravatar` | Public Gravatar profile for an email hash |
+| `username` | Public GitHub/Keybase account existence |
+
+Guardrails: scheme and credential rejection, private/link-local/loopback DNS
+blocking, redirect re-validation, robots.txt enforcement for page fetches,
+per-host rate limits, response-size and timeout caps, and collector isolation.
+Search and breach collectors require their own API keys and provider terms.
+Results are masked in the report and the raw response is stored as evidence.
+
+The `--authorized` flag is an operator assertion, not user authentication. Put
+the API behind your own authentication and authorization layer before enabling
+exposure scanning, and only check identifiers you are entitled to investigate.
+
+## Step graph
+
+The planner emits a safe order; the graph proves and visualises it. Findings are
+roots, flow/restore controls precede record changes, downstream copies precede
+primary accounts, and each verification depends on the action that produced its
+state.
+
+```bash
+curl -s localhost:8000/v1/requests/<request>/graph
+curl -s 'localhost:8000/v1/requests/<request>/graph?format=mermaid'
+curl -s 'localhost:8000/v1/requests/<request>/graph?format=dot'
+```
+
+The API `run` response, attestation payload and `demo --graph` include the same
+DAG. Nodes carry phase, operation, state, system/resource and dependencies.
+
 ## Evidence, ledger and attestations
 
 - **Evidence store** (`evidence/store.py`) writes immutable snapshots under
@@ -221,6 +318,13 @@ ERASUREPROOF_DATA_DIR=./.erasureproof
 ERASUREPROOF_ATTESTATION_KEY=change-me
 ERASUREPROOF_POLICY_DIR=./policies
 ERASUREPROOF_DEFAULT_JURISDICTION=gdpr
+
+# Passive exposure discovery is opt-in. Keep the API key values in a secret store.
+ERASUREPROOF_EXPOSURE_ENABLED=false
+# ERASUREPROOF_SERPER_API_KEY=
+# ERASUREPROOF_BRAVE_API_KEY=
+# ERASUREPROOF_GITHUB_TOKEN=
+# ERASUREPROOF_HIBP_API_KEY=
 ```
 
 SQLite is the default so the demo needs no external services. Set a
@@ -234,8 +338,11 @@ SQLite is the default so the demo needs no external services. Set a
 ```
 
 The test suite covers intent classification, identity resolution, policy
-decisions, plan ordering, SQL/object-store remediation, ledger tamper
-detection, attestation signature verification, the API and the full demo.
+decisions, DAG ordering, evidence extraction (text/JSON/PDF/ZIP), workspace
+scanning, filesystem redaction, exposure authorization/scoring with fake HTTP,
+SQL/object-store remediation, ledger tamper detection, attestation signature
+verification, the API and the full demo. OCR tests are skipped when host OCR
+tools are unavailable.
 
 ## Design decisions
 
@@ -257,6 +364,7 @@ detection, attestation signature verification, the API and the full demo.
 - Residency-aware multi-region connectors and retention calendars
 - Per-connector OAuth/KMS credential management
 - Continuous resurrection monitoring (alert when deleted data reappears)
+- Scheduled exposure rescans with diffing and archive/cache takedown tracking
 - Attestation transparency log and third-party verifier CLI
 - Policy simulation and dry-run impact reports
 

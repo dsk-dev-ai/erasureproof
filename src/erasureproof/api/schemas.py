@@ -93,6 +93,7 @@ class RunResponse(BaseModel):
     request_id: str
     status: str
     plan: dict[str, Any]
+    graph: dict[str, Any] | None = None
     verification: list[dict[str, Any]]
     actions: list[dict[str, Any]]
     attestation: dict[str, Any] | None
@@ -119,3 +120,13 @@ class HealthOut(BaseModel):
     status: Literal["ok"] = "ok"
     version: str
     database: str
+
+
+class ExposureScanRequest(BaseModel):
+    email: str | None = None
+    phone: str | None = None
+    name: str | None = None
+    usernames: list[str] = Field(default_factory=list)
+    urls: list[str] = Field(default_factory=list)
+    collectors: list[str] | None = None
+    authorized: bool = False

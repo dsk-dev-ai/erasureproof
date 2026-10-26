@@ -254,6 +254,7 @@ class Step:
     operation: str
     state: State
     evidence_id: str = ""
+    category: Category | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
