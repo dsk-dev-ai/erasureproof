@@ -2,6 +2,35 @@
 
 All notable changes are recorded here. ErasureProof follows semantic versioning.
 
+## 1.0.0
+
+### Added
+
+- API-key and OIDC authentication with viewer, operator, and administrator
+  roles plus server-side tenant isolation on every endpoint.
+- Single-use, time-limited remediation approvals with separation of duties.
+- Tamper-evident operational audit events with JSON listings and tenant-scoped
+  CSV export.
+- Signed backup archives for evidence, ledger, attestations, and SQLite
+  metadata, with verification and safe restore.
+- Request IDs, per-IP rate limiting, Prometheus metrics, security headers,
+  readiness checks, and production configuration validation.
+- Console bearer-token management, authenticated evidence downloads, approval
+  controls, and audit export.
+- Kubernetes manifests with probes, HPA, ingress, shared storage, and network
+  policy, plus a production Compose overlay.
+- OIDC extra and cryptography in the development environment.
+
+### Changed
+
+- CORS no longer defaults to `*`; configure `ERASUREPROOF_CORS_ORIGINS`.
+- Evidence metadata stores relative paths so restored data directories resolve
+  existing objects.
+- Connector configurations are redacted for secret-bearing keys in API output.
+- Production startup fails when authentication is disabled or the default
+  attestation key is still in use.
+- Version bumped to 1.0.0 across the API, console, and documentation.
+
 ## 0.3.0
 
 ### Added

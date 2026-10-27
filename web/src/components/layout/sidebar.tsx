@@ -117,7 +117,7 @@ export function Sidebar({
                   to="/app/docs"
                   className="text-[10px] font-semibold uppercase tracking-widest text-primary"
                 >
-                  v0.3
+                  v1.0
                 </Link>
               </div>
               <div className="flex items-center justify-between px-1">

@@ -171,6 +171,60 @@ def _cmd_attestation_verify(args: argparse.Namespace) -> int:
     return 0 if valid else 1
 
 
+def _cmd_backup_create(args: argparse.Namespace) -> int:
+    from .backup import BackupError, create_backup
+
+    try:
+        result = create_backup(args.output, overwrite=args.force)
+    except BackupError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    if args.json:
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+        return 0
+    print(f"backup:        {result['backup']}")
+    print(f"size:          {result['bytes']} bytes")
+    print(f"files:         {result['files']}")
+    print(f"database:      {'included' if result['database_included'] else 'external'}")
+    for warning in result["warnings"]:
+        print(f"warning:       {warning}", file=sys.stderr)
+    return 0
+
+
+def _cmd_backup_verify(args: argparse.Namespace) -> int:
+    from .backup import verify_backup
+
+    result = verify_backup(args.path)
+    if args.json:
+        print(json.dumps(result.to_dict(), indent=2, ensure_ascii=False))
+    else:
+        print(f"backup:        {result.path}")
+        print(f"signature:     {'VALID' if result.valid else 'INVALID'}")
+        print(f"files:         {len((result.manifest or {}).get('files', []))}")
+        for error in result.errors:
+            print(f"error:         {error}", file=sys.stderr)
+    return 0 if result.valid else 1
+
+
+def _cmd_backup_restore(args: argparse.Namespace) -> int:
+    from .backup import BackupError, restore_backup
+
+    try:
+        result = restore_backup(args.path, force=args.force)
+    except BackupError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    if args.json:
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+        return 0
+    print(f"restored:      {result['files']} files from {result['backup']}")
+    for target in result["targets"][:20]:
+        print(f"  {target}")
+    for warning in result["warnings"]:
+        print(f"warning:       {warning}", file=sys.stderr)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="erasureproof", description="Proof-of-erasure platform")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -233,6 +287,32 @@ def build_parser() -> argparse.ArgumentParser:
     attestation_verify = attestation_sub.add_parser("verify", help="verify a signed attestation")
     attestation_verify.add_argument("path")
     attestation_verify.set_defaults(func=_cmd_attestation_verify)
+
+    backup = subparsers.add_parser("backup", help="verified state backup and restore")
+    backup_sub = backup.add_subparsers(dest="backup_command", required=True)
+
+    backup_create = backup_sub.add_parser("create", help="create a signed backup archive")
+    backup_create.add_argument(
+        "--output",
+        default=None,
+        help="destination .zip path (default: ./backups/erasureproof-<timestamp>.zip)",
+    )
+    backup_create.add_argument("--force", action="store_true", help="overwrite an existing file")
+    backup_create.add_argument("--json", action="store_true")
+    backup_create.set_defaults(func=_cmd_backup_create)
+
+    backup_verify = backup_sub.add_parser("verify", help="verify signature, hashes, and sizes")
+    backup_verify.add_argument("path")
+    backup_verify.add_argument("--json", action="store_true")
+    backup_verify.set_defaults(func=_cmd_backup_verify)
+
+    backup_restore = backup_sub.add_parser(
+        "restore", help="restore a verified backup (stop the service first)"
+    )
+    backup_restore.add_argument("path")
+    backup_restore.add_argument("--force", action="store_true", help="overwrite existing files")
+    backup_restore.add_argument("--json", action="store_true")
+    backup_restore.set_defaults(func=_cmd_backup_restore)
 
     return parser
 

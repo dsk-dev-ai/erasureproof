@@ -126,6 +126,39 @@ class AttestationRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class ApprovalRow(Base):
+    __tablename__ = "approvals"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("apr"))
+    request_id: Mapped[str] = mapped_column(String(64), ForeignKey("requests.id"), index=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), ForeignKey("tenants.id"), index=True)
+    status: Mapped[str] = mapped_column(String(32), default="PENDING", index=True)
+    requested_by: Mapped[str] = mapped_column(String(255), nullable=False)
+    decided_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    reason: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AuditEventRow(Base):
+    __tablename__ = "audit_events"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("aud"))
+    tenant_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("tenants.id"), nullable=True, index=True
+    )
+    actor: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    actor_role: Mapped[str] = mapped_column(String(32), nullable=False)
+    action: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    resource_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    resource_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    request_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    detail: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
 class Database:
     def __init__(self, url: str) -> None:
         connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}

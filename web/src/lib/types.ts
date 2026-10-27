@@ -18,6 +18,37 @@ export interface RequestOut {
   jurisdiction: string;
   result?: RunResponse | null;
   plan?: Plan | null;
+  approval_status?: string | null;
+  approval_expires_at?: string | null;
+  approval_consumed_at?: string | null;
+  approved_by?: string | null;
+}
+
+export interface Approval {
+  id: string;
+  request_id: string;
+  tenant_id: string;
+  status: string;
+  requested_by: string;
+  decided_by: string | null;
+  reason: string;
+  created_at: string;
+  decided_at: string | null;
+  expires_at: string | null;
+  consumed_at: string | null;
+}
+
+export interface AuditEvent {
+  id: string;
+  tenant_id: string | null;
+  actor: string;
+  actor_role: string;
+  action: string;
+  resource_type: string;
+  resource_id: string;
+  request_id: string | null;
+  detail: Record<string, unknown>;
+  created_at: string;
 }
 
 export interface RequestSummary {
@@ -57,7 +88,13 @@ export interface Overview {
   trend: Array<{ date: string; count: number }>;
   ledger: { head: string; recent: LedgerEntry[] };
   policies: string[];
-  features: { exposure_enabled: boolean; demo_enabled: boolean; environment: string };
+  features: {
+    exposure_enabled: boolean;
+    demo_enabled: boolean;
+    environment: string;
+    auth_mode: string;
+    approval_required: boolean;
+  };
 }
 
 export interface PlanStep {

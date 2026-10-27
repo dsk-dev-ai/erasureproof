@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { TokenDialog } from "@/components/auth/token-dialog";
 import { useTenants } from "@/hooks/use-api";
+import { getApiToken } from "@/lib/api";
 import type { Tenant } from "@/lib/types";
 
 interface TenantContextValue {
@@ -14,6 +16,7 @@ const TenantContext = createContext<TenantContextValue | null>(null);
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
   const { data: tenants = [], isLoading } = useTenants();
+  const [tokenOpen, setTokenOpen] = useState(false);
   const [tenantId, setTenantIdState] = useState<string | undefined>(() => {
     if (typeof window === "undefined") return undefined;
     return window.localStorage.getItem("erasureproof.tenant") ?? undefined;
@@ -35,13 +38,31 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     window.localStorage.setItem("erasureproof.tenant", id);
   }, []);
 
+  useEffect(() => {
+    const open = () => setTokenOpen(true);
+    const onUnauthorized = () => {
+      if (!getApiToken()) setTokenOpen(true);
+    };
+    window.addEventListener("erasureproof:show-token", open);
+    window.addEventListener("erasureproof:unauthorized", onUnauthorized);
+    return () => {
+      window.removeEventListener("erasureproof:show-token", open);
+      window.removeEventListener("erasureproof:unauthorized", onUnauthorized);
+    };
+  }, []);
+
   const tenant = tenants.find((item) => item.id === tenantId);
   const value = useMemo(
     () => ({ tenantId, tenant, tenants, setTenantId, isLoading }),
     [tenantId, tenant, tenants, setTenantId, isLoading],
   );
 
-  return <TenantContext.Provider value={value}>{children}</TenantContext.Provider>;
+  return (
+    <TenantContext.Provider value={value}>
+      {children}
+      <TokenDialog open={tokenOpen} onClose={() => setTokenOpen(false)} />
+    </TenantContext.Provider>
+  );
 }
 
 export function useTenant() {

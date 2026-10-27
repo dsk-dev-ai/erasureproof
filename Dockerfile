@@ -33,14 +33,21 @@ RUN apt-get update \
         libimage-exiftool-perl \
     && rm -rf /var/lib/apt/lists/*
 
-RUN --mount=type=cache,target=/root/.cache/pip pip install ".[postgres]"
+RUN --mount=type=cache,target=/root/.cache/pip pip install ".[postgres,oidc]"
 
-RUN mkdir -p /data
+RUN groupadd --gid 10001 app \
+    && useradd --uid 10001 --gid app --no-create-home --shell /usr/sbin/nologin app \
+    && mkdir -p /data \
+    && chown -R app:app /data
 
 ENV ERASUREPROOF_DATA_DIR=/data \
     ERASUREPROOF_DATABASE_URL=sqlite:////data/erasureproof.db \
     ERASUREPROOF_POLICY_DIR=/app/policies \
-    ERASUREPROOF_WEB_DIR=/app/web/dist
+    ERASUREPROOF_WEB_DIR=/app/web/dist \
+    HOME=/tmp \
+    XDG_CACHE_HOME=/tmp/.cache
+
+USER app
 
 EXPOSE 8000
 

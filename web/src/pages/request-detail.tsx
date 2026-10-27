@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   ShieldX,
   Sparkles,
+  Stamp,
   Terminal,
   XCircle,
 } from "lucide-react";
@@ -32,7 +33,16 @@ import { ErrorState } from "@/components/ui/error-state";
 import { StatusBadge } from "@/components/requests/status-badge";
 import { PlanGraph } from "@/components/requests/plan-graph";
 import { MotionDiv } from "@/components/motion/motion";
-import { useEvidence, useGraph, useRequest, useRunRequest, useVerifyEvidence } from "@/hooks/use-api";
+import {
+  useApprovals,
+  useDecideApproval,
+  useEvidence,
+  useGraph,
+  useOverview,
+  useRequest,
+  useRunRequest,
+  useVerifyEvidence,
+} from "@/hooks/use-api";
 import { api } from "@/lib/api";
 import { cn, formatDate, formatRelative, humanize } from "@/lib/utils";
 import type { PlanStep, VerificationResult } from "@/lib/types";
@@ -178,7 +188,11 @@ export function RequestDetailPage() {
   const { data: evidenceData } = useEvidence();
   const run = useRunRequest();
   const verify = useVerifyEvidence();
+  const { data: overview } = useOverview();
+  const { data: approvals = [] } = useApprovals(request?.id);
+  const decide = useDecideApproval();
   const [tab, setTab] = useState("plan");
+  const [reason, setReason] = useState("");
 
   const plan = request?.result?.plan ?? request?.plan;
   const graph = request?.result?.graph ?? graphData;
@@ -204,9 +218,45 @@ export function RequestDetailPage() {
   const passed = verified.filter((item) => item.passed).length;
   const isApplicable = request?.status !== "NOT_APPLICABLE";
   const needsRun = request?.status === "PENDING" || !steps.length;
+  const approvalRequired = overview?.features.approval_required ?? false;
+  const approvalExpired = request?.approval_expires_at
+    ? new Date(request.approval_expires_at).getTime() <= Date.now()
+    : false;
+  const approvalActive =
+    !approvalRequired ||
+    Boolean(
+      request?.approval_status === "APPROVED" &&
+        !request.approval_consumed_at &&
+        !approvalExpired,
+    );
+  const latestApproval = approvals[0];
+
+  const decideApproval = async (decision: "APPROVED" | "REJECTED") => {
+    if (!request) return;
+    try {
+      await decide.mutateAsync({
+        id: request.id,
+        decision,
+        reason: reason.trim() || `${decision === "APPROVED" ? "Approved" : "Rejected"} in console`,
+      });
+      setReason("");
+      toast.success(
+        decision === "APPROVED"
+          ? "Remediation approved. The audit can now run."
+          : "Remediation rejected.",
+      );
+      void refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Approval action failed");
+    }
+  };
 
   const startAudit = async () => {
     if (!request) return;
+    if (approvalRequired && !approvalActive) {
+      toast.error("An administrator must approve remediation before this run.");
+      return;
+    }
     try {
       const response = await run.mutateAsync({ id: request.id, force: request.status !== "PENDING" });
       toast.success(
@@ -278,7 +328,16 @@ export function RequestDetailPage() {
               <Button variant="outline" onClick={() => copy(request.id, "Request ID")}>
                 <Copy className="h-3.5 w-3.5" /> Copy ID
               </Button>
-              <Button variant="brand" onClick={() => void startAudit()} disabled={run.isPending}>
+              <Button
+                variant="brand"
+                onClick={() => void startAudit()}
+                disabled={run.isPending || (approvalRequired && !approvalActive)}
+                title={
+                  approvalRequired && !approvalActive
+                    ? "Administrator approval is required"
+                    : undefined
+                }
+              >
                 {run.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : needsRun ? <Play className="h-4 w-4" /> : <RotateCw className="h-4 w-4" />}
                 {run.isPending ? "Running audit…" : needsRun ? "Run deletion audit" : "Re-run audit"}
               </Button>
@@ -304,6 +363,111 @@ export function RequestDetailPage() {
           </span>
         ) : null}
       </div>
+
+      {approvalRequired && isApplicable ? (
+        <Card
+          className={cn(
+            "overflow-hidden",
+            approvalActive ? "border-emerald-400/20 bg-emerald-400/[0.03]" : "border-amber-400/25 bg-amber-400/[0.04]",
+          )}
+        >
+          <CardHeader className="flex-row items-start gap-3">
+            <span
+              className={cn(
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+                approvalActive ? "bg-emerald-400/10 text-emerald-300" : "bg-amber-400/10 text-amber-300",
+              )}
+            >
+              <Stamp className="h-4 w-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <CardTitle>Remediation approval</CardTitle>
+              <CardDescription>
+                Destructive actions are single-use and must be approved by a different administrator.
+              </CardDescription>
+            </div>
+            <Badge
+              variant={
+                approvalActive
+                  ? "success"
+                  : request.approval_status === "REJECTED"
+                    ? "danger"
+                    : "warning"
+              }
+            >
+              {request.approval_consumed_at
+                ? "Consumed"
+                : approvalExpired && request.approval_status === "APPROVED"
+                  ? "Expired"
+                  : request.approval_status
+                    ? humanize(request.approval_status)
+                    : "Pending"}
+            </Badge>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-2 text-[11px] text-muted-foreground sm:grid-cols-3">
+              <span>
+                Approved by:{" "}
+                <span className="font-mono text-foreground/80">
+                  {request.approved_by ?? "—"}
+                </span>
+              </span>
+              <span>
+                Expires:{" "}
+                <span className="text-foreground/80">
+                  {request.approval_expires_at ? formatDate(request.approval_expires_at) : "—"}
+                </span>
+              </span>
+              <span>
+                Consumed:{" "}
+                <span className="text-foreground/80">
+                  {request.approval_consumed_at ? formatRelative(request.approval_consumed_at) : "—"}
+                </span>
+              </span>
+            </div>
+            {latestApproval?.reason ? (
+              <p className="rounded-xl border border-border/60 bg-background/30 px-3 py-2 text-[11px] text-muted-foreground">
+                {latestApproval.reason}
+              </p>
+            ) : null}
+            <textarea
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder="Decision note (optional, recorded in the audit trail)"
+              rows={2}
+              className="w-full rounded-xl border border-border/80 bg-background/60 px-3 py-2 text-xs outline-none focus:border-primary/50"
+            />
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-[10px] text-muted-foreground">
+                Administrator role required. Approval expires after the configured TTL.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void decideApproval("REJECTED")}
+                  disabled={decide.isPending}
+                >
+                  <XCircle className="h-3.5 w-3.5" /> Reject
+                </Button>
+                <Button
+                  variant="brand"
+                  size="sm"
+                  onClick={() => void decideApproval("APPROVED")}
+                  disabled={decide.isPending}
+                >
+                  {decide.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                  )}
+                  Approve remediation
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {request.status === "NOT_APPLICABLE" ? (
         <Card className="border-border/70">
@@ -360,7 +524,16 @@ export function RequestDetailPage() {
                 policy, then execute an ordered remediation plan with verification.
               </p>
             </div>
-            <Button variant="brand" onClick={() => void startAudit()} disabled={run.isPending}>
+            <Button
+              variant="brand"
+              onClick={() => void startAudit()}
+              disabled={run.isPending || (approvalRequired && !approvalActive)}
+              title={
+                approvalRequired && !approvalActive
+                  ? "Administrator approval is required"
+                  : undefined
+              }
+            >
               {run.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
               {run.isPending ? "Auditing…" : "Start audit"}
             </Button>
@@ -477,11 +650,17 @@ export function RequestDetailPage() {
                         )}
                         Verify
                       </Button>
-                      <a href={api.evidenceContentUrl(item.evidence_id)} target="_blank" rel="noreferrer">
-                        <Button variant="secondary" size="sm">
-                          <ExternalLink className="h-3.5 w-3.5" /> Open
-                        </Button>
-                      </a>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() =>
+                          void api.openEvidence(item.evidence_id).catch((err) =>
+                            toast.error(err instanceof Error ? err.message : "Could not open evidence"),
+                          )
+                        }
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" /> Open
+                      </Button>
                     </div>
                   </div>
                 ))}

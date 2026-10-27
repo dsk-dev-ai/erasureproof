@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: erasureproof
+  namespace: erasureproof
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # Limit requests at the edge as well as in the application.
+    nginx.ingress.kubernetes.io/limit-rps: "50"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - erasureproof.example.com
+      secretName: erasureproof-tls
+  rules:
+    - host: erasureproof.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: erasureproof
+                port:
+                  name: http

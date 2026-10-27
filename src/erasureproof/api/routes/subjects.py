@@ -5,8 +5,10 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 
+from ...audit import record_audit
 from ...models.db import Database, IdentifierRow, Subject, Tenant, new_id
 from ...models.domain import IdentifierType, normalize_value, utcnow
+from ..auth import Principal, require_operator, require_viewer
 from ..deps import get_db
 from ..schemas import IdentifierIn, SubjectCreate, SubjectOut
 
@@ -33,7 +35,12 @@ def _to_out(subject: Subject, identifiers: list[IdentifierRow]) -> SubjectOut:
 
 
 @router.post("/v1/subjects", response_model=SubjectOut, status_code=status.HTTP_201_CREATED)
-def create_subject(payload: SubjectCreate, database: Database = Depends(get_db)) -> SubjectOut:
+def create_subject(
+    payload: SubjectCreate,
+    database: Database = Depends(get_db),
+    principal: Principal = Depends(require_operator),
+) -> SubjectOut:
+    principal.ensure_tenant(payload.tenant_id)
     with database.session() as session:
         if session.get(Tenant, payload.tenant_id) is None:
             raise HTTPException(status_code=404, detail="tenant not found")
@@ -61,12 +68,26 @@ def create_subject(payload: SubjectCreate, database: Database = Depends(get_db))
             )
             session.add(row)
             rows.append(row)
+        record_audit(
+            session,
+            principal,
+            action="subject.created",
+            resource_type="subject",
+            resource_id=subject.id,
+            tenant_id=subject.tenant_id,
+            detail={"identifier_count": len(rows), "user_id": subject.user_id},
+        )
         session.flush()
         return _to_out(subject, rows)
 
 
 @router.get("/v1/tenants/{tenant_id}/subjects", response_model=list[SubjectOut])
-def list_subjects(tenant_id: str, database: Database = Depends(get_db)) -> list[SubjectOut]:
+def list_subjects(
+    tenant_id: str,
+    database: Database = Depends(get_db),
+    principal: Principal = Depends(require_viewer),
+) -> list[SubjectOut]:
+    principal.ensure_tenant(tenant_id)
     with database.session() as session:
         subjects = session.scalars(
             select(Subject).where(Subject.tenant_id == tenant_id).order_by(Subject.created_at)
@@ -81,11 +102,16 @@ def list_subjects(tenant_id: str, database: Database = Depends(get_db)) -> list[
 
 
 @router.get("/v1/subjects/{subject_id}", response_model=SubjectOut)
-def get_subject(subject_id: str, database: Database = Depends(get_db)) -> SubjectOut:
+def get_subject(
+    subject_id: str,
+    database: Database = Depends(get_db),
+    principal: Principal = Depends(require_viewer),
+) -> SubjectOut:
     with database.session() as session:
         subject = session.get(Subject, subject_id)
         if subject is None:
             raise HTTPException(status_code=404, detail="subject not found")
+        principal.ensure_tenant(subject.tenant_id)
         identifiers = session.scalars(
             select(IdentifierRow).where(IdentifierRow.subject_id == subject.id)
         ).all()

@@ -86,7 +86,7 @@ class EvidenceStore:
         metadata = {
             "evidence_id": evidence_id,
             "sha256": digest,
-            "path": str(object_path),
+            "path": str(object_path.relative_to(self.root)),
             "source": source,
             "captured_at": captured_at.isoformat(),
             "size": len(raw),
@@ -112,14 +112,26 @@ class EvidenceStore:
             raise FileNotFoundError(f"Unknown evidence: {evidence_id}")
         return json.loads(meta_path.read_text(encoding="utf-8"))
 
+    def object_path(self, metadata: dict[str, Any]) -> Path:
+        """Resolve an object path across copied or relocated data directories."""
+
+        digest = str(metadata["sha256"])
+        candidate = self.objects / digest[:2] / digest
+        if candidate.exists():
+            return candidate
+        stored = Path(str(metadata.get("path", "")))
+        if stored.is_absolute():
+            return stored
+        return self.root / stored
+
     def get(self, evidence_id: str) -> bytes:
         metadata = self.metadata(evidence_id)
-        return Path(metadata["path"]).read_bytes()
+        return self.object_path(metadata).read_bytes()
 
     def exists(self, evidence_id: str) -> bool:
         return (self.meta / f"{evidence_id}.json").exists()
 
     def verify(self, evidence_id: str) -> bool:
         metadata = self.metadata(evidence_id)
-        raw = Path(metadata["path"]).read_bytes()
+        raw = self.object_path(metadata).read_bytes()
         return sha256_hex(raw) == metadata["sha256"]
