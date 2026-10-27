@@ -162,20 +162,23 @@ operations dashboard, request audits, a remediation dependency graph, identity
 and connector views, evidence/ledger inspection, passive exposure scanning,
 policy configuration, and built-in product documentation.
 
+Install the console dependencies once, then run both processes from the repository root:
+
 ```bash
-cd web
-npm install
+npm install --prefix web
 npm run dev
 # Console: http://localhost:5173
-# API proxy: http://localhost:8000
+# API:     http://localhost:8000
 ```
+
+`npm run dev` starts the FastAPI API (with reload) and the Vite console together.
+Use `npm run dev:api` or `npm run dev:web` to start only one side. The root
+scripts require an existing `.venv` created during installation.
 
 For a production build served by FastAPI:
 
 ```bash
-cd web
 npm run build
-cd ..
 .venv/bin/erasureproof serve
 # Console: http://localhost:8000/console
 ```
