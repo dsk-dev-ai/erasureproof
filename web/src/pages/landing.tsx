@@ -353,7 +353,7 @@ export function LandingPage() {
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
                 </span>
-                ErasureProof v0.3 · deletion audit control plane
+                ErasureProof v1.0 · deletion audit control plane
               </motion.div>
               <motion.h1
                 initial={{ opacity: 0, y: 18 }}
@@ -747,7 +747,7 @@ export function LandingPage() {
               <span className="flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-success" /> All systems operational
               </span>
-              <span className="font-mono">v0.3.0</span>
+              <span className="font-mono">v1.0.0</span>
             </div>
           </div>
         </div>

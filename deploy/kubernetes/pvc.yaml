@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: erasureproof-data
+  namespace: erasureproof
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 50Gi
+  # Set storageClassName to a shared filesystem class (NFS, CephFS, EFS, Filestore).
+  # The ledger and evidence store must be shared by every replica.
+  # storageClassName: example-rwx

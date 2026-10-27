@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: erasureproof
+  namespace: erasureproof
+  labels:
+    app.kubernetes.io/name: erasureproof
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: erasureproof
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

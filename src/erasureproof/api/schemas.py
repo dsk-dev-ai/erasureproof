@@ -87,6 +87,42 @@ class RequestOut(BaseModel):
     jurisdiction: str
     result: dict[str, Any] | None = None
     plan: dict[str, Any] | None = None
+    approval_status: str | None = None
+    approval_expires_at: datetime | None = None
+    approval_consumed_at: datetime | None = None
+    approved_by: str | None = None
+
+
+class ApprovalDecision(BaseModel):
+    decision: Literal["APPROVED", "REJECTED"]
+    reason: str = Field(default="", max_length=2000)
+
+
+class ApprovalOut(BaseModel):
+    id: str
+    request_id: str
+    tenant_id: str
+    status: str
+    requested_by: str
+    decided_by: str | None
+    reason: str
+    created_at: datetime
+    decided_at: datetime | None
+    expires_at: datetime | None
+    consumed_at: datetime | None
+
+
+class AuditEventOut(BaseModel):
+    id: str
+    tenant_id: str | None
+    actor: str
+    actor_role: str
+    action: str
+    resource_type: str
+    resource_id: str
+    request_id: str | None
+    detail: dict[str, Any]
+    created_at: datetime
 
 
 class RunResponse(BaseModel):
@@ -122,7 +158,14 @@ class HealthOut(BaseModel):
     database: str
 
 
+class ReadinessOut(BaseModel):
+    status: Literal["ok"] = "ok"
+    version: str
+    checks: dict[str, str]
+
+
 class ExposureScanRequest(BaseModel):
+    tenant_id: str | None = None
     email: str | None = None
     phone: str | None = None
     name: str | None = None

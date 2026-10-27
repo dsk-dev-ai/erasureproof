@@ -242,11 +242,17 @@ export function EvidencePage() {
                           <ShieldCheck className="h-3.5 w-3.5" />
                         )}
                       </Button>
-                      <a href={api.evidenceContentUrl(item.evidence_id)} target="_blank" rel="noreferrer">
-                        <Button variant="secondary" size="sm">
-                          <ExternalLink className="h-3.5 w-3.5" /> Open
-                        </Button>
-                      </a>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() =>
+                          void api.openEvidence(item.evidence_id).catch((err) =>
+                            toast.error(err instanceof Error ? err.message : "Could not open evidence"),
+                          )
+                        }
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" /> Open
+                      </Button>
                     </div>
                   </div>
                 );

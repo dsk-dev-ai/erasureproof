@@ -1,0 +1,45 @@
+# Single-host production starting point. For multi-replica deployments use
+# deploy/kubernetes. PostgreSQL must be an external, backed-up service; SQLite is
+# not suitable for this profile.
+#
+# Required environment:
+#   ERASUREPROOF_DATABASE_URL
+#   ERASUREPROOF_ATTESTATION_KEY   (openssl rand -hex 32)
+#   ERASUREPROOF_API_KEYS          (JSON list, one key per operator)
+#   ERASUREPROOF_METRICS_TOKEN     (or /metrics uses admin auth)
+#   ERASUREPROOF_CORS_ORIGINS      (https://your-console.example.com)
+#
+# Run:
+#   docker compose -f docker-compose.production.yml up -d --build
+
+services:
+  api:
+    build:
+      context: .
+      network: host
+    ports:
+      - "8000:8000"
+    environment:
+      ERASUREPROOF_ENVIRONMENT: production
+      ERASUREPROOF_DATABASE_URL: ${ERASUREPROOF_DATABASE_URL:?set ERASUREPROOF_DATABASE_URL}
+      ERASUREPROOF_DATA_DIR: /data
+      ERASUREPROOF_POLICY_DIR: /app/policies
+      ERASUREPROOF_WEB_DIR: /app/web/dist
+      ERASUREPROOF_DEMO_ENABLED: "false"
+      ERASUREPROOF_EXPOSURE_ENABLED: "false"
+      ERASUREPROOF_AUTH_MODE: ${ERASUREPROOF_AUTH_MODE:-api_key}
+      ERASUREPROOF_API_KEYS: ${ERASUREPROOF_API_KEYS:?set ERASUREPROOF_API_KEYS}
+      ERASUREPROOF_ATTESTATION_KEY: ${ERASUREPROOF_ATTESTATION_KEY:?set ERASUREPROOF_ATTESTATION_KEY}
+      ERASUREPROOF_METRICS_TOKEN: ${ERASUREPROOF_METRICS_TOKEN:?set ERASUREPROOF_METRICS_TOKEN}
+      ERASUREPROOF_REQUIRE_REMEDIATION_APPROVAL: "true"
+      ERASUREPROOF_APPROVAL_REQUIRES_SEPARATE_USER: "true"
+      ERASUREPROOF_RATE_LIMIT_PER_MINUTE: "600"
+      ERASUREPROOF_TRUST_PROXY_HEADERS: "true"
+      ERASUREPROOF_HSTS_SECONDS: "31536000"
+      ERASUREPROOF_CORS_ORIGINS: ${ERASUREPROOF_CORS_ORIGINS:?set ERASUREPROOF_CORS_ORIGINS}
+    volumes:
+      - erasureproof-data:/data
+    restart: unless-stopped
+
+volumes:
+  erasureproof-data:

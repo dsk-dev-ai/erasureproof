@@ -27,6 +27,36 @@ export function useRequest(id?: string) {
   });
 }
 
+export function useApprovals(id?: string) {
+  return useQuery({
+    queryKey: ["approvals", id],
+    queryFn: () => api.approvals(id as string),
+    enabled: Boolean(id && id !== "demo"),
+    retry: false,
+  });
+}
+
+export function useDecideApproval() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      decision,
+      reason,
+    }: {
+      id: string;
+      decision: "APPROVED" | "REJECTED";
+      reason: string;
+    }) => api.decideApproval(id, decision, reason),
+    onSuccess: (_data, variables) => {
+      void client.invalidateQueries({ queryKey: ["request", variables.id] });
+      void client.invalidateQueries({ queryKey: ["approvals", variables.id] });
+      void client.invalidateQueries({ queryKey: ["overview"] });
+      void client.invalidateQueries({ queryKey: ["requests"] });
+    },
+  });
+}
+
 export function useGraph(id?: string) {
   return useQuery({
     queryKey: ["graph", id],

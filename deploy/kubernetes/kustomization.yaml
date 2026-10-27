@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: erasureproof
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - pvc.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - hpa.yaml
+  - networkpolicy.yaml
+# Create the secret separately so plaintext keys never enter Git:
+#   kubectl -n erasureproof create secret generic erasureproof-secrets \
+#     --from-env-file=deploy/kubernetes/secret.env
+# or apply deploy/kubernetes/secret.example.yaml after replacing every value.

@@ -29,7 +29,7 @@ class ExposureService:
                 getattr(
                     settings,
                     "exposure_user_agent",
-                    "ErasureProof/0.2 (+https://github.com/dsk-dev-ai/erasureproof)",
+                    "ErasureProof/1.0 (+https://github.com/dsk-dev-ai/erasureproof)",
                 )
             ),
             rate_limit_seconds=float(

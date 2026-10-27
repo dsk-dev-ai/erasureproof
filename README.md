@@ -14,9 +14,18 @@ row. ErasureProof treats those statuses as claims. It proves the state of every
 copy at a point in time — including active sync jobs and restorable backups that
 can recreate data after deletion.
 
-The `0.3` line adds a complete, self-hosted web console plus the capabilities that
-matter after the first database row is gone:
+The `1.0` line turns the engine into a production control plane:
 
+- **Authentication and tenant isolation** with static API keys or OIDC, viewer /
+  operator / administrator roles, and server-side tenant scoping on every read
+  and write.
+- **Approval-gated remediation** where a second administrator authorizes a
+  single-use, time-limited destructive run and every decision is audited.
+- **A tamper-evident operational audit trail** with tenant-scoped CSV export,
+  plus signed backups of evidence, the ledger, attestations, and metadata.
+- **A hardened edge** with request IDs, per-IP rate limiting, Prometheus metrics,
+  security headers, configurable CORS, production configuration validation,
+  readiness probes, and Kubernetes manifests.
 - **A full console** for overview metrics, request audits, identity graphs,
   remediation plans, evidence inspection, ledger verification, policy review,
   and demo discovery.
@@ -129,6 +138,23 @@ Useful follow-ups:
 # OpenAPI docs: http://localhost:8000/docs
 ```
 
+Local development defaults to `ERASUREPROOF_AUTH_MODE=disabled`. Production
+startup fails unless authentication is enabled and the attestation key is
+changed. For a static-key deployment:
+
+```bash
+export ERASUREPROOF_ENVIRONMENT=production
+export ERASUREPROOF_AUTH_MODE=api_key
+export ERASUREPROOF_ATTESTATION_KEY="$(openssl rand -hex 32)"
+export ERASUREPROOF_API_KEYS='[{"key":"replace-me","role":"admin","tenant_id":"*","subject":"admin"}]'
+export ERASUREPROOF_REQUIRE_REMEDIATION_APPROVAL=true
+export ERASUREPROOF_CORS_ORIGINS=https://erasureproof.example.com
+```
+
+Send the key as `Authorization: Bearer <key>` or `X-API-Key: <key>`. OIDC mode
+validates RS256/384/512 tokens against the configured issuer, audience, and
+JWKS URL; install the `oidc` extra.
+
 ### Run the web console
 
 The console is a Vite + React application in `web/`. It ships a landing page, an
@@ -163,6 +189,10 @@ Seed the non-destructive demo workspace from the landing page or with:
 curl -X POST http://localhost:8000/v1/demo/seed
 ```
 
+When authentication is enabled, open the key button in the console top bar (or
+Settings → API access) and paste a bearer token. Evidence downloads use the same
+authenticated request, so private artifacts never require a public URL.
+
 ### Docker
 
 ```bash
@@ -170,6 +200,19 @@ docker compose up --build
 # Console: http://localhost:8000/console
 # API:     http://localhost:8000
 # Docs:    http://localhost:8000/docs
+```
+
+That compose file is a local demo with authentication disabled. For a hardened
+single-host deployment with an external PostgreSQL database, API-key auth,
+required approvals, metrics token, and HSTS:
+
+```bash
+export ERASUREPROOF_DATABASE_URL='postgresql+psycopg://...'
+export ERASUREPROOF_ATTESTATION_KEY="$(openssl rand -hex 32)"
+export ERASUREPROOF_API_KEYS='[{"key":"...","role":"admin","tenant_id":"*","subject":"admin"}]'
+export ERASUREPROOF_METRICS_TOKEN="$(openssl rand -hex 32)"
+export ERASUREPROOF_CORS_ORIGINS='https://erasureproof.example.com'
+docker compose -f docker-compose.production.yml up -d --build
 ```
 
 The image uses a multi-stage build: Node builds the console, then the Python
@@ -336,6 +379,39 @@ curl -s 'localhost:8000/v1/requests/<request>/graph?format=dot'
 The API `run` response, attestation payload and `demo --graph` include the same
 DAG. Nodes carry phase, operation, state, system/resource and dependencies.
 
+## Approvals, audit and backup
+
+When `ERASUREPROOF_REQUIRE_REMEDIATION_APPROVAL=true`, a request creator cannot
+run destructive remediation until a **different administrator** approves it.
+Approvals are single-use, expire after `ERASUREPROOF_APPROVAL_TTL_HOURS`, and are
+consumed atomically before the run. Audit-only runs (`?remediate=false`) do not
+require approval.
+
+Administrative events (request creation, runs, approvals, tenant and connector
+changes, exposure scans) are written to `audit_events` and exposed as
+tenant-scoped JSON and CSV:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  'localhost:8000/v1/audit-events?limit=100'
+curl -H "Authorization: Bearer $TOKEN" \
+  -o audit.csv 'localhost:8000/v1/audit-events/export'
+```
+
+Create and verify a signed backup archive:
+
+```bash
+.venv/bin/erasureproof backup create --output /secure/backups/erasureproof.zip
+.venv/bin/erasureproof backup verify /secure/backups/erasureproof.zip
+```
+
+The archive contains evidence objects, the ledger, attestations, and a SQLite
+snapshot when the metadata store is SQLite. It is signed with the attestation
+key; a wrong key or modified member fails verification. Back up PostgreSQL
+separately with your provider's tooling. Restoring refuses to overwrite live
+data unless `--force` is supplied and the destination is outside the live data
+directories.
+
 ## Evidence, ledger and attestations
 
 - **Evidence store** (`evidence/store.py`) writes immutable snapshots under
@@ -360,6 +436,21 @@ ERASUREPROOF_DEMO_ENABLED=true
 ERASUREPROOF_ATTESTATION_KEY=change-me
 ERASUREPROOF_POLICY_DIR=./policies
 ERASUREPROOF_DEFAULT_JURISDICTION=gdpr
+
+# Production access control. Production refuses auth_mode=disabled.
+ERASUREPROOF_AUTH_MODE=disabled
+# ERASUREPROOF_API_KEYS=[{"key":"...","role":"admin","tenant_id":"*","subject":"admin"}]
+# ERASUREPROOF_OIDC_ISSUER=https://idp.example.com
+# ERASUREPROOF_OIDC_AUDIENCE=erasureproof
+# ERASUREPROOF_OIDC_JWKS_URL=https://idp.example.com/.well-known/jwks.json
+ERASUREPROOF_REQUIRE_REMEDIATION_APPROVAL=false
+ERASUREPROOF_APPROVAL_TTL_HOURS=24
+
+# Edge and observability. Put TLS and rate limits at the gateway too.
+ERASUREPROOF_CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+ERASUREPROOF_RATE_LIMIT_PER_MINUTE=0
+ERASUREPROOF_HSTS_SECONDS=0
+# ERASUREPROOF_METRICS_TOKEN=
 
 # Passive exposure discovery is opt-in. Keep the API key values in a secret store.
 ERASUREPROOF_EXPOSURE_ENABLED=false
@@ -399,7 +490,7 @@ The console reads the same REST API as the CLI. It contains:
 | Connectors | Source inventory and connection configuration. |
 | Exposure | Authorized passive scan of public sources with safety guardrails. |
 | Evidence & ledger | Artifact integrity checks, hash-chain verification, and the policy matrix. |
-| Settings | Theme, workspace, runtime, and environment configuration. |
+| Settings | Theme, workspace, bearer token, audit export, runtime, and environment configuration. |
 | Docs | Product, architecture, API, deployment, and security documentation. |
 
 Animation is implemented with Framer Motion, charts with Recharts, and server
@@ -426,7 +517,7 @@ See [`CHANGELOG.md`](CHANGELOG.md) for release history.
 
 ## Roadmap
 
-- Durable Temporal workflows with human approval gates
+- Durable Temporal workflows backed by the approval ledger
 - Residency-aware multi-region connectors and retention calendars
 - Per-connector OAuth/KMS credential management
 - Continuous resurrection monitoring (alert when deleted data reappears)
@@ -434,10 +525,22 @@ See [`CHANGELOG.md`](CHANGELOG.md) for release history.
 - Attestation transparency log and third-party verifier CLI
 - Policy simulation and dry-run impact reports
 
+## Kubernetes
+
+Production manifests live in [`deploy/kubernetes`](deploy/kubernetes). They run
+two or more replicas against managed PostgreSQL and a shared `ReadWriteMany`
+volume, enable API-key authentication, require remediation approval, add
+probes, HPA, ingress TLS, and a default-deny network policy. See the deployment
+README before applying.
+
 ## Security
 
 Never commit credentials. Connector secrets should come from a secret manager or
-environment variables. See [SECURITY.md](SECURITY.md) for reporting guidance.
+environment variables. In production, startup validation rejects disabled
+authentication and the default attestation key. Use one API key per operator,
+scope keys to a tenant, keep a wildcard admin key offline, and scrape `/metrics`
+with a dedicated token. See [SECURITY.md](SECURITY.md) for reporting guidance
+and [`deploy/kubernetes`](deploy/kubernetes) for hardening notes.
 
 ## License
 

@@ -6,14 +6,29 @@ from datetime import timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import PlainTextResponse
-from sqlalchemy import select
+from sqlalchemy import or_, select, update
 
+from ...audit import (
+    approval_is_active,
+    approval_to_dict,
+    attach_approvals,
+    latest_approval,
+    record_audit,
+)
 from ...config import get_settings
 from ...connectors.registry import load_for_tenant
 from ...core.graph import build_step_graph, plan_from_dict
 from ...core.identity import resolve_from_db, resolve_graph
 from ...core.normalize import classify_request
-from ...models.db import Database, IdentifierRow, RequestRow, Subject, Tenant, new_id
+from ...models.db import (
+    ApprovalRow,
+    Database,
+    IdentifierRow,
+    RequestRow,
+    Subject,
+    Tenant,
+    new_id,
+)
 from ...models.domain import (
     Identifier,
     IdentifierType,
@@ -22,6 +37,7 @@ from ...models.domain import (
     utcnow,
 )
 from ...orchestrator.runner import ErasureOrchestrator, RunResult
+from ..auth import Principal, require_operator, require_viewer
 from ..deps import (
     get_attestations,
     get_db,
@@ -36,7 +52,7 @@ router = APIRouter()
 _TERMINAL = {"COMPLETE", "INCOMPLETE", "NOT_APPLICABLE"}
 
 
-def _request_out(row: RequestRow) -> RequestOut:
+def _request_out(row: RequestRow, approval: ApprovalRow | None = None) -> RequestOut:
     return RequestOut(
         id=row.id,
         tenant_id=row.tenant_id,
@@ -48,6 +64,7 @@ def _request_out(row: RequestRow) -> RequestOut:
         jurisdiction=row.jurisdiction,
         result=row.result,
         plan=row.plan,
+        **approval_to_dict(approval),
     )
 
 
@@ -74,8 +91,11 @@ def _stored_response(row: RequestRow) -> RunResponse:
 
 @router.post("/v1/requests", response_model=RequestOut, status_code=status.HTTP_201_CREATED)
 def create_request(
-    payload: RequestCreate, database: Database = Depends(get_db)
+    payload: RequestCreate,
+    database: Database = Depends(get_db),
+    principal: Principal = Depends(require_operator),
 ) -> RequestOut:
+    principal.ensure_tenant(payload.tenant_id)
     intent = classify_request(payload.request_text)
     requested_at = payload.requested_at or utcnow()
     audit_at = payload.audit_at
@@ -83,7 +103,8 @@ def create_request(
         audit_at = audit_at.replace(tzinfo=timezone.utc)
 
     with database.session() as session:
-        if session.get(Tenant, payload.tenant_id) is None:
+        tenant = session.get(Tenant, payload.tenant_id)
+        if tenant is None:
             raise HTTPException(status_code=404, detail="tenant not found")
 
         row = RequestRow(
@@ -94,8 +115,7 @@ def create_request(
             request_text=payload.request_text,
             requested_at=requested_at,
             audit_at=audit_at,
-            jurisdiction=payload.jurisdiction
-            or session.get(Tenant, payload.tenant_id).jurisdiction,
+            jurisdiction=payload.jurisdiction or tenant.jurisdiction,
             status="PENDING" if intent.is_deletion else "NOT_APPLICABLE",
             result=None if intent.is_deletion else {"intent": intent.to_dict()},
             created_at=utcnow(),
@@ -103,6 +123,20 @@ def create_request(
         )
         session.add(row)
         session.flush()
+        record_audit(
+            session,
+            principal,
+            action="request.created",
+            resource_type="request",
+            resource_id=row.id,
+            tenant_id=row.tenant_id,
+            request_id=row.id,
+            detail={
+                "jurisdiction": row.jurisdiction,
+                "deletion_intent": intent.is_deletion,
+                "intent_category": intent.category,
+            },
+        )
         return _request_out(row)
 
 
@@ -112,7 +146,11 @@ def list_all_requests(
     status_filter: str | None = Query(default=None, alias="status"),
     limit: int = Query(default=100, ge=1, le=500),
     database: Database = Depends(get_db),
+    principal: Principal = Depends(require_viewer),
 ) -> list[RequestOut]:
+    principal.ensure_tenant(tenant_id)
+    if tenant_id is None and not principal.tenant_wildcard:
+        tenant_id = principal.tenant_id
     filters = []
     if tenant_id:
         filters.append(RequestRow.tenant_id == tenant_id)
@@ -122,29 +160,39 @@ def list_all_requests(
         rows = session.scalars(
             select(RequestRow).where(*filters).order_by(RequestRow.created_at.desc()).limit(limit)
         ).all()
-        return [_request_out(row) for row in rows]
+        approvals = attach_approvals(session, list(rows))
+        return [_request_out(row, approvals.get(row.id)) for row in rows]
 
 
 @router.get("/v1/requests/{request_id}", response_model=RequestOut)
-def get_request(request_id: str, database: Database = Depends(get_db)) -> RequestOut:
+def get_request(
+    request_id: str,
+    database: Database = Depends(get_db),
+    principal: Principal = Depends(require_viewer),
+) -> RequestOut:
     with database.session() as session:
         row = session.get(RequestRow, request_id)
         if row is None:
             raise HTTPException(status_code=404, detail="request not found")
-        return _request_out(row)
+        principal.ensure_tenant(row.tenant_id)
+        return _request_out(row, latest_approval(session, request_id))
 
 
 @router.get("/v1/tenants/{tenant_id}/requests", response_model=list[RequestOut])
 def list_requests(
-    tenant_id: str, database: Database = Depends(get_db)
+    tenant_id: str,
+    database: Database = Depends(get_db),
+    principal: Principal = Depends(require_viewer),
 ) -> list[RequestOut]:
+    principal.ensure_tenant(tenant_id)
     with database.session() as session:
         rows = session.scalars(
             select(RequestRow)
             .where(RequestRow.tenant_id == tenant_id)
             .order_by(RequestRow.created_at)
         ).all()
-        return [_request_out(row) for row in rows]
+        approvals = attach_approvals(session, list(rows))
+        return [_request_out(row, approvals.get(row.id)) for row in rows]
 
 
 @router.post("/v1/requests/{request_id}/run", response_model=RunResponse)
@@ -153,6 +201,7 @@ def run_request(
     remediate: bool = Query(default=True, description="Execute remediation, not just audit"),
     force: bool = Query(default=False, description="Re-run a terminal request"),
     database: Database = Depends(get_db),
+    principal: Principal = Depends(require_operator),
 ) -> RunResponse:
     settings = get_settings()
     store = get_store()
@@ -164,6 +213,7 @@ def run_request(
         row = session.get(RequestRow, request_id)
         if row is None:
             raise HTTPException(status_code=404, detail="request not found")
+        principal.ensure_tenant(row.tenant_id)
         if (
             not force
             and row.status in _TERMINAL
@@ -202,8 +252,64 @@ def run_request(
                 "errors": [],
             }
             row.updated_at = utcnow()
+            record_audit(
+                session,
+                principal,
+                action="request.run",
+                resource_type="request",
+                resource_id=row.id,
+                tenant_id=row.tenant_id,
+                request_id=row.id,
+                detail={
+                    "status": row.status,
+                    "remediate": remediate,
+                    "force": force,
+                    "approval_id": None,
+                },
+            )
             session.flush()
             return _stored_response(row)
+
+        approval: ApprovalRow | None = None
+        if remediate and settings.require_remediation_approval:
+            approval = latest_approval(session, row.id, for_update=True)
+            claimed_at = utcnow()
+            claimed = (
+                session.execute(
+                    update(ApprovalRow)
+                    .where(
+                        ApprovalRow.id == approval.id if approval else False,
+                        ApprovalRow.status == "APPROVED",
+                        ApprovalRow.consumed_at.is_(None),
+                        or_(
+                            ApprovalRow.expires_at.is_(None),
+                            ApprovalRow.expires_at > claimed_at,
+                        ),
+                    )
+                    .values(consumed_at=claimed_at)
+                    .execution_options(synchronize_session=False)
+                ).rowcount
+                if approval is not None and approval_is_active(approval)
+                else 0
+            )
+            if claimed != 1:
+                raise HTTPException(
+                    status_code=428,
+                    detail=(
+                        "remediation approval required; an administrator must approve "
+                        "the request before destructive actions can run"
+                    ),
+                )
+            record_audit(
+                session,
+                principal,
+                action="approval.consumed",
+                resource_type="approval",
+                resource_id=approval.id,
+                tenant_id=row.tenant_id,
+                request_id=row.id,
+                detail={"approval_id": approval.id},
+            )
 
         subject = resolve_from_db(session, row.tenant_id, row.email, row.audit_at)
         if not subject.user_id and row.subject_id:
@@ -255,18 +361,38 @@ def run_request(
         row.plan = result.plan.to_dict()
         row.result = result.to_dict()
         row.updated_at = utcnow()
+        record_audit(
+            session,
+            principal,
+            action="request.run",
+            resource_type="request",
+            resource_id=row.id,
+            tenant_id=row.tenant_id,
+            request_id=row.id,
+            detail={
+                "status": result.status,
+                "remediate": remediate,
+                "force": force,
+                "approval_id": approval.id if approval else None,
+                "actions": len(result.actions),
+                "verifications": len(result.verifications),
+            },
+        )
         session.flush()
         return _run_response_from_result(result)
 
 
 @router.get("/v1/requests/{request_id}/attestation", response_model=AttestationOut)
 def get_attestation(
-    request_id: str, database: Database = Depends(get_db)
+    request_id: str,
+    database: Database = Depends(get_db),
+    principal: Principal = Depends(require_viewer),
 ) -> AttestationOut:
     with database.session() as session:
         row = session.get(RequestRow, request_id)
         if row is None:
             raise HTTPException(status_code=404, detail="request not found")
+        principal.ensure_tenant(row.tenant_id)
         stored = (row.result or {}).get("attestation")
         if not stored:
             raise HTTPException(status_code=404, detail="attestation not issued")
@@ -284,11 +410,13 @@ def get_request_graph(
     request_id: str,
     format: str = Query(default="json", pattern="^(json|mermaid|dot)$"),
     database: Database = Depends(get_db),
+    principal: Principal = Depends(require_viewer),
 ):
     with database.session() as session:
         row = session.get(RequestRow, request_id)
         if row is None:
             raise HTTPException(status_code=404, detail="request not found")
+        principal.ensure_tenant(row.tenant_id)
         if not row.plan:
             raise HTTPException(status_code=404, detail="request has no plan yet")
         plan_data = dict(row.plan)

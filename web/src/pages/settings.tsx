@@ -1,9 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Check,
   Database,
+  Download,
   ExternalLink,
   Info,
+  KeyRound,
   Moon,
   Palette,
   ServerCog,
@@ -11,6 +14,7 @@ import {
   Sparkles,
   Sun,
   Terminal,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui/page-header";
@@ -20,11 +24,15 @@ import { Badge } from "@/components/ui/badge";
 import { useTheme } from "@/components/theme-provider";
 import { useTenant } from "@/components/tenant-provider";
 import { useOverview, useSeedDemo } from "@/hooks/use-api";
-import { api } from "@/lib/api";
+import { api, clearApiToken, getApiToken, setApiToken } from "@/lib/api";
 import { cn, formatDate } from "@/lib/utils";
 
 const envVars = [
   ["ERASUREPROOF_ENVIRONMENT", "development", "Runtime label shown in the console."],
+  ["ERASUREPROOF_AUTH_MODE", "disabled", "disabled, api_key, or oidc. Production must not use disabled."],
+  ["ERASUREPROOF_REQUIRE_REMEDIATION_APPROVAL", "false", "Require a second administrator to approve destructive runs."],
+  ["ERASUREPROOF_RATE_LIMIT_PER_MINUTE", "0", "Per-process request limit for /v1 endpoints."],
+  ["ERASUREPROOF_METRICS_TOKEN", "—", "Bearer token for Prometheus scraping when set."],
   ["ERASUREPROOF_DEMO_ENABLED", "true", "Expose the non-destructive demo bootstrap endpoint."],
   ["ERASUREPROOF_EXPOSURE_ENABLED", "false", "Enable passive public-source collection."],
   ["ERASUREPROOF_DATABASE_URL", "sqlite:///…", "SQLite or PostgreSQL metadata store."],
@@ -36,7 +44,31 @@ export function SettingsPage() {
   const { tenant, tenantId, tenants, setTenantId } = useTenant();
   const { data: overview } = useOverview(tenantId);
   const seed = useSeedDemo();
+  const client = useQueryClient();
   const health = useQuery({ queryKey: ["health"], queryFn: api.health, retry: false });
+  const [token, setToken] = useState(() => getApiToken());
+
+  const saveToken = async () => {
+    setApiToken(token);
+    await client.invalidateQueries();
+    toast.success(token.trim() ? "API access token saved" : "API access token removed");
+  };
+
+  const clearToken = async () => {
+    clearApiToken();
+    setToken("");
+    await client.invalidateQueries();
+    toast.success("API access token removed");
+  };
+
+  const exportAudit = async () => {
+    try {
+      await api.downloadAudit(tenantId);
+      toast.success("Audit export downloaded");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Audit export failed");
+    }
+  };
 
   const loadDemo = async () => {
     try {
@@ -130,6 +162,8 @@ export function SettingsPage() {
               ["API version", health.data?.version ?? "unreachable"],
               ["Database", health.data?.database ?? "—"],
               ["Environment", overview?.features.environment ?? "—"],
+              ["Authentication", overview?.features.auth_mode ?? "—"],
+              ["Remediation approval", overview?.features.approval_required ? "required" : "not required"],
               ["Exposure scanner", overview?.features.exposure_enabled ? "enabled" : "disabled"],
               ["Demo bootstrap", overview?.features.demo_enabled ? "enabled" : "disabled"],
               ["Ledger head", overview?.ledger.head.slice(0, 18) ?? "—"],
@@ -139,6 +173,66 @@ export function SettingsPage() {
                 <span className="max-w-48 truncate font-mono text-foreground/80">{value}</span>
               </div>
             ))}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <div className="mb-2 flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <KeyRound className="h-5 w-5" />
+              </span>
+              <div>
+                <CardTitle>API access</CardTitle>
+                <CardDescription>Bearer token for this browser session.</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <input
+              type="password"
+              autoComplete="off"
+              value={token}
+              onChange={(event) => setToken(event.target.value)}
+              placeholder="Paste bearer token or API key"
+              className="h-10 w-full rounded-xl border border-border/80 bg-background/60 px-3 font-mono text-xs outline-none focus:border-primary/50"
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => void clearToken()}>
+                <Trash2 className="h-3.5 w-3.5" /> Clear
+              </Button>
+              <Button variant="brand" size="sm" onClick={() => void saveToken()}>
+                <KeyRound className="h-3.5 w-3.5" /> Save token
+              </Button>
+            </div>
+            <p className="text-[11px] leading-5 text-muted-foreground">
+              Stored only in this browser. Use a short-lived token and clear it on shared devices.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="mb-2 flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Download className="h-5 w-5" />
+              </span>
+              <div>
+                <CardTitle>Operational audit</CardTitle>
+                <CardDescription>Export tenant-scoped administrative events.</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs leading-5 text-muted-foreground">
+              CSV export requires an administrator role. It includes request creation,
+              approvals, remediation runs, tenant changes, and connector lifecycle events.
+            </p>
+            <Button variant="outline" size="sm" onClick={() => void exportAudit()}>
+              <Download className="h-3.5 w-3.5" /> Download CSV
+            </Button>
           </CardContent>
         </Card>
       </div>

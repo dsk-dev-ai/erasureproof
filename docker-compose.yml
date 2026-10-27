@@ -5,14 +5,21 @@ services:
       network: host
     ports:
       - "8000:8000"
+    # Local demo defaults. For production use docker-compose.production.yml
+    # with secrets, or the Kubernetes manifests under deploy/kubernetes.
     environment:
-      ERASUREPROOF_ENVIRONMENT: production
+      ERASUREPROOF_ENVIRONMENT: ${ERASUREPROOF_ENVIRONMENT:-development}
       ERASUREPROOF_DATABASE_URL: postgresql+psycopg://erasureproof:erasureproof@db:5432/erasureproof
       ERASUREPROOF_DATA_DIR: /data
       ERASUREPROOF_POLICY_DIR: /app/policies
       ERASUREPROOF_WEB_DIR: /app/web/dist
       ERASUREPROOF_DEMO_ENABLED: ${ERASUREPROOF_DEMO_ENABLED:-true}
       ERASUREPROOF_ATTESTATION_KEY: ${ERASUREPROOF_ATTESTATION_KEY:-dev-insecure-change-me}
+      ERASUREPROOF_AUTH_MODE: ${ERASUREPROOF_AUTH_MODE:-disabled}
+      ERASUREPROOF_API_KEYS: ${ERASUREPROOF_API_KEYS:-}
+      ERASUREPROOF_REQUIRE_REMEDIATION_APPROVAL: ${ERASUREPROOF_REQUIRE_REMEDIATION_APPROVAL:-false}
+      ERASUREPROOF_RATE_LIMIT_PER_MINUTE: ${ERASUREPROOF_RATE_LIMIT_PER_MINUTE:-0}
+      ERASUREPROOF_CORS_ORIGINS: ${ERASUREPROOF_CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
     volumes:
       - erasureproof-data:/data
     depends_on:

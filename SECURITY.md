@@ -23,6 +23,10 @@ We will acknowledge receipt within three business days and coordinate disclosure
   restrict access to the connector service.
 - Replace `ERASUREPROOF_ATTESTATION_KEY` with a KMS/Vault-backed signer in any
   environment that matters. The default key is for local development only.
+- Use one API key per operator, scope it to a tenant, and rotate it on
+  offboarding. Keep wildcard admin keys in a break-glass store.
+- Protect signed backup archives: they contain evidence, metadata, and the
+  ledger. Never store the signing key beside the archives.
 
 ## Data handling
 
@@ -36,16 +40,27 @@ We will acknowledge receipt within three business days and coordinate disclosure
 
 ## Deployment
 
-- Put the API and console behind authenticated TLS termination. The reference
-  API and console have no built-in authentication; add OAuth2/OIDC and
-  per-tenant authorization before exposing either one.
+- Terminate TLS at a trusted ingress. Enable `ERASUREPROOF_HSTS_SECONDS` and set
+  `ERASUREPROOF_TRUST_PROXY_HEADERS=true` only when the ingress is the sole path
+  to the API.
+- Use `ERASUREPROOF_AUTH_MODE=api_key` or `oidc`. Production startup refuses to
+  run with authentication disabled or the default attestation key.
+- Scope every API key and OIDC tenant claim to one tenant. Wildcard tenants are
+  restricted to administrators.
+- Enable `ERASUREPROOF_REQUIRE_REMEDIATION_APPROVAL=true` and keep separation of
+  duties so the request creator cannot approve their own destructive run.
 - Set `ERASUREPROOF_DEMO_ENABLED=false` outside local development. The demo
   bootstrap creates a workspace and seeds fictional records.
+- Set `ERASUREPROOF_METRICS_TOKEN`; otherwise `/metrics` requires an admin
+  principal. Scrape it over the cluster network only.
+- Export audit events to immutable storage and run signed backups on a schedule.
 - Use a dedicated database role with the minimum privileges needed by each
   connector.
 - Run connectors with read-only credentials until remediation is explicitly
   approved, then use narrowly scoped write credentials.
-- Back up the ledger and attestation directory; they are your proof trail.
+- Back up the ledger, attestation directory, evidence, and metadata. Use
+  `erasureproof backup create` for the signed archive and your database
+  provider's tooling for PostgreSQL. Verify a restore before relying on it.
 
 ## Dependencies
 

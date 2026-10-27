@@ -5,6 +5,7 @@ import {
   ChevronDown,
   Command,
   ExternalLink,
+  KeyRound,
   Menu,
   Moon,
   Sun,
@@ -110,6 +111,16 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
             <span>Search</span>
             <kbd className="rounded border border-border/70 bg-muted px-1 font-mono text-[9px]">⌘K</kbd>
           </button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => window.dispatchEvent(new Event("erasureproof:show-token"))}
+            aria-label="API access token"
+            title="API access token"
+          >
+            <KeyRound className="h-4 w-4" />
+          </Button>
 
           <span
             title={health.data ? `API ${health.data.version}` : "API unreachable"}

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -10,8 +11,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from . import __version__
-from .api.routes import connectors, exposure, overview, requests, subjects, system, tenants
-from .config import get_settings
+from .api.routes import (
+    connectors,
+    exposure,
+    governance,
+    overview,
+    requests,
+    subjects,
+    system,
+    tenants,
+)
+from .config import get_settings, validate_runtime_settings
+from .middleware import ProductionMiddleware
 from .models.db import get_database
 
 
@@ -32,13 +43,26 @@ def _web_index() -> Path:
     return index
 
 
+def _configure_logging() -> None:
+    logger = logging.getLogger("erasureproof")
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+        logger.propagate = False
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    validate_runtime_settings(get_settings())
     get_database().create_all()
     yield
 
 
 def create_app() -> FastAPI:
+    _configure_logging()
+    settings = get_settings()
     application = FastAPI(
         title="ErasureProof",
         version=__version__,
@@ -48,14 +72,18 @@ def create_app() -> FastAPI:
         ),
         lifespan=lifespan,
     )
-    application.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=False,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    if settings.cors_origin_list:
+        application.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.cors_origin_list,
+            allow_credentials=False,
+            allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+            allow_headers=["Authorization", "Content-Type", "X-API-Key", "X-Request-ID"],
+            expose_headers=["X-Request-ID", "X-RateLimit-Limit", "Retry-After"],
+        )
+    application.add_middleware(ProductionMiddleware)
     application.include_router(system.router, tags=["system"])
+    application.include_router(governance.router, tags=["governance"])
     application.include_router(overview.router, tags=["overview"])
     application.include_router(tenants.router, tags=["tenants"])
     application.include_router(subjects.router, tags=["subjects"])

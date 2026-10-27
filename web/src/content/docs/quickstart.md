@@ -11,7 +11,7 @@
 
 ~~~bash
 uv venv .venv
-uv pip install --python .venv/bin/python -e ".[dev]"
+uv pip install --python .venv/bin/python -e ".[dev,oidc]"
 .venv/bin/erasureproof demo
 ~~~
 
@@ -35,6 +35,21 @@ curl -X POST http://localhost:8000/v1/demo/seed
 ~~~
 
 Open `http://localhost:8000/docs` for the OpenAPI reference.
+
+Local development defaults to `ERASUREPROOF_AUTH_MODE=disabled`. Production
+startup refuses that default. For an API-key deployment:
+
+~~~bash
+export ERASUREPROOF_ENVIRONMENT=production
+export ERASUREPROOF_AUTH_MODE=api_key
+export ERASUREPROOF_ATTESTATION_KEY="$(openssl rand -hex 32)"
+export ERASUREPROOF_API_KEYS='[{"key":"replace-me","role":"admin","tenant_id":"*","subject":"admin"}]'
+export ERASUREPROOF_REQUIRE_REMEDIATION_APPROVAL=true
+~~~
+
+Then use the key button in the console top bar or send
+`Authorization: Bearer <key>` with API calls. Tenant-scoped keys cannot read or
+write another tenant's data.
 
 ## Web console
 
@@ -70,4 +85,7 @@ docker build -t erasureproof .
 docker run --rm -p 8000:8000 erasureproof
 ~~~
 
-The image includes OCR and document-processing dependencies so scanned PDFs and images work out of the box.
+The image includes OCR, document-processing, PostgreSQL, and OIDC dependencies so
+scanned PDFs and images work out of the box. For a hardened deployment, use
+`docker compose -f docker-compose.production.yml` or
+`deploy/kubernetes`.
