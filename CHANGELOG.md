@@ -25,6 +25,8 @@ needed to run ErasureProof as a shared service.
   evidence listing and overview counts include discovery snapshots.
 - PostgreSQL URLs are normalized to the Psycopg driver automatically.
 - Sandbox handoff redirects stay inside the console base path.
+- Overview pass-rate and attestation-coverage metrics no longer multiply
+  already-percentage API values by 100.
 
 ### Changed
 

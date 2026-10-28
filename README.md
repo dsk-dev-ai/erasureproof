@@ -229,7 +229,7 @@ npm run build
 # Console: http://localhost:8000/console
 ```
 
-The Vite build requires Node 20 or newer and uses `/console/` as its production
+The Vite build requires Node 22 or newer and uses `/console/` as its production
 base. FastAPI serves hashed assets with immutable caching and falls back to
 `index.html` for client routes.
 Seed the non-destructive demo workspace from the landing page or with:

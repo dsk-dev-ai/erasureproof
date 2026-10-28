@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:20-bookworm-slim AS console
+FROM node:24-bookworm-slim AS console
 
 WORKDIR /app/web
 
@@ -23,8 +23,8 @@ WORKDIR /app
 
 COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
-COPY policies ./policies
-COPY --from=console /app/web/dist ./web/dist
+
+RUN --mount=type=cache,target=/root/.cache/pip pip install ".[postgres,oidc]"
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -33,7 +33,8 @@ RUN apt-get update \
         libimage-exiftool-perl \
     && rm -rf /var/lib/apt/lists/*
 
-RUN --mount=type=cache,target=/root/.cache/pip pip install ".[postgres,oidc]"
+COPY policies ./policies
+COPY --from=console /app/web/dist ./web/dist
 
 RUN groupadd --gid 10001 app \
     && useradd --uid 10001 --gid app --no-create-home --shell /usr/sbin/nologin app \

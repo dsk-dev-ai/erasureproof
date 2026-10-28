@@ -183,7 +183,7 @@ export function DashboardPage() {
   const pending = data.statuses.PENDING ?? 0;
   const complete = data.statuses.COMPLETE ?? 0;
   const incomplete = data.statuses.INCOMPLETE ?? 0;
-  const passRate = Math.round(data.verification.pass_rate * 100);
+  const passRate = Math.round(data.verification.pass_rate);
 
   return (
     <>
@@ -230,7 +230,7 @@ export function DashboardPage() {
           />
           <MetricCard
             label="Attested requests"
-            value={Math.round(data.attestation_coverage * 100)}
+            value={Math.round(data.attestation_coverage)}
             suffix="%"
             detail={`${data.totals.attestations} signed attestations issued`}
             icon={<CheckCircle2 className="h-4 w-4" />}
