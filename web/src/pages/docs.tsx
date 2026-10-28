@@ -153,7 +153,7 @@ export function DocsPage() {
             </span>
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
-                {current.category} · v1.0
+                {current.category} · v1.1
               </p>
               <h1 className="mt-1 font-display text-2xl font-bold tracking-tight sm:text-3xl">{current.title}</h1>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">{current.description}</p>

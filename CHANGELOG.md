@@ -2,7 +2,11 @@
 
 All notable changes are recorded here. ErasureProof follows semantic versioning.
 
-## Unreleased
+## 1.1.0 — 2026-10-28
+
+The first tagged stable release. It adds the hosted developer experience,
+self-service sandbox onboarding, tenant API keys, and the deployment surface
+needed to run ErasureProof as a shared service.
 
 ### Added
 
@@ -11,13 +15,20 @@ All notable changes are recorded here. ErasureProof follows semantic versioning.
 - Tenant API key lifecycle: hashed storage, roles, expiry, rotation, revocation,
   limits, and audit events.
 - Console API key management page and one-time sandbox onboarding dialog.
+- Hosted console onboarding, developer quickstart, and live deployment links.
 - Python SDK, API reference, Render blueprint, and deployment guide.
+- Release banner, README quickstart, CI badge, and GitHub Sponsors support.
 
 ### Fixed
 
 - Connector evidence is now attributed to the audited request, so tenant-scoped
   evidence listing and overview counts include discovery snapshots.
 - PostgreSQL URLs are normalized to the Psycopg driver automatically.
+- Sandbox handoff redirects stay inside the console base path.
+
+### Changed
+
+- Version bumped to 1.1.0 across the API, console, and SDK.
 
 ## 1.0.0
 

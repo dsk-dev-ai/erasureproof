@@ -1,10 +1,44 @@
-# ErasureProof
+<p align="center">
+  <img src="docs/assets/banner.svg" alt="ErasureProof — find every copy, prove every deletion" width="100%">
+</p>
 
-**Proof-of-erasure for every copy of personal data.**
+<h1 align="center">ErasureProof</h1>
 
-[Live console](https://erasureproof.onrender.com/console) ·
-[API documentation](https://erasureproof.onrender.com/docs) ·
-[Python SDK](sdk/python)
+<p align="center">
+  <strong>Deletion is a promise. Prove it.</strong><br>
+  Find every copy of a person's data, remediate in a safe order, and issue a signed, tamper-evident attestation.
+</p>
+
+<p align="center">
+  <a href="https://erasureproof.onrender.com/healthz"><img src="https://img.shields.io/website?url=https%3A%2F%2Ferasureproof.onrender.com%2Fhealthz&label=live%20api&up_message=operational&down_message=offline&style=for-the-badge&color=14b8a6" alt="Live API status"></a>
+  <a href="https://github.com/dsk-dev-ai/erasureproof/releases"><img src="https://img.shields.io/github/v/release/dsk-dev-ai/erasureproof?style=for-the-badge&color=14b8a6" alt="Latest release"></a>
+  <a href="https://github.com/dsk-dev-ai/erasureproof/actions/workflows/ci.yml"><img src="https://github.com/dsk-dev-ai/erasureproof/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-0ea5e9?style=for-the-badge" alt="Apache-2.0 license"></a>
+  <a href="https://github.com/sponsors/dsk-dev-ai"><img src="https://img.shields.io/badge/sponsor-Support%20the%20project-db2777?style=for-the-badge" alt="Sponsor ErasureProof"></a>
+</p>
+
+<p align="center">
+  <a href="https://erasureproof.onrender.com/console">Live console</a> ·
+  <a href="https://erasureproof.onrender.com/docs">API documentation</a> ·
+  <a href="sdk/python">Python SDK</a> ·
+  <a href="docs/API.md">API reference</a> ·
+  <a href="docs/DEPLOY_RENDER.md">Deployment guide</a>
+</p>
+
+> [!TIP]
+> **Try a live deletion audit in under a minute.** Create an isolated sandbox
+> with a one-time API key. No installation, no production data, and a signed
+> attestation at the end.
+
+```bash
+curl -s -X POST https://erasureproof.onrender.com/v1/onboarding/sandbox \
+  -H 'content-type: application/json' \
+  -d '{"workspace_name":"Acme privacy"}'
+```
+
+![ErasureProof hosted console](docs/assets/landing.png)
+
+<p align="center"><sub>The hosted operations console: deletion audits, remediation plans, evidence, and ledger verification.</sub></p>
 
 ErasureProof is a deletion-audit and remediation engine. It reconstructs a
 person's identity from current and historical identifiers, finds their records
@@ -17,29 +51,6 @@ Deletion workflows usually report success because the primary database deleted a
 row. ErasureProof treats those statuses as claims. It proves the state of every
 copy at a point in time — including active sync jobs and restorable backups that
 can recreate data after deletion.
-
-The `1.0` line turns the engine into a production control plane:
-
-- **Authentication and tenant isolation** with static API keys or OIDC, viewer /
-  operator / administrator roles, and server-side tenant scoping on every read
-  and write.
-- **Approval-gated remediation** where a second administrator authorizes a
-  single-use, time-limited destructive run and every decision is audited.
-- **A tamper-evident operational audit trail** with tenant-scoped CSV export,
-  plus signed backups of evidence, the ledger, attestations, and metadata.
-- **A hardened edge** with request IDs, per-IP rate limiting, Prometheus metrics,
-  security headers, configurable CORS, production configuration validation,
-  readiness probes, and Kubernetes manifests.
-- **A full console** for overview metrics, request audits, identity graphs,
-  remediation plans, evidence inspection, ledger verification, policy review,
-  and demo discovery.
-- **Evidence intelligence** for PDFs, images, OCR, Office files, archives,
-  SQLite snapshots, metadata and free text, with subject matching over current
-  and historical identifiers.
-- **Authorized exposure discovery** for public URLs, web archives, search APIs,
-  breach metadata and public profiles — passive checks only, disabled by default.
-- **A step dependency graph** that makes remediation ordering inspectable and
-  renderable as Mermaid, Graphviz DOT or JSON, or interactively in the console.
 
 ## Why this exists
 
@@ -92,6 +103,37 @@ Request ──► Intent classifier ──► Identity graph (current + historic
    every expected outcome; it does not trust action success flags.
 7. **Attestation.** The outcome, plan and verification results are canonicalised,
    signed with HMAC-SHA256 and committed to a SHA-256 hash-chained ledger.
+
+## What ships in 1.1
+
+| Prove the state | Remediate safely | Operate with confidence |
+| --- | --- | --- |
+| Identity graph over current and historical identifiers | Policy engine for delete, redact, anonymize, retain, and tombstone | API-key or OIDC auth with tenant isolation and roles |
+| Evidence extraction for PDF, OCR, Office, archives, SQLite, logs, and images | Dependency-ordered plan that controls flows and restores first | Approval-gated destructive runs with separation of duties |
+| Signed HMAC attestations plus a hash-chained ledger | Re-discovery and verification that never trusts action flags | Audit events, CSV export, signed backups, metrics, and probes |
+| Interactive remediation DAG in JSON, Mermaid, or DOT | Built-in SQL, object-store, filesystem, S3, and control connectors | Hosted console, Python SDK, Docker, Compose, and Kubernetes |
+
+- **Authentication and tenant isolation** with static API keys or OIDC,
+  viewer/operator/administrator roles, and server-side tenant scoping.
+- **Self-service onboarding** with isolated sandboxes, seeded connectors,
+  one-time keys, per-IP quotas, and expiry.
+- **Approval-gated remediation** where a second administrator authorizes a
+  single-use, time-limited destructive run.
+- **Tamper-evident auditing** with tenant-scoped CSV export and signed backups
+  of evidence, the ledger, attestations, and metadata.
+- **A hardened edge** with request IDs, per-IP rate limiting, Prometheus
+  metrics, security headers, configurable CORS, readiness probes, and
+  Kubernetes manifests.
+- **A full console** for overview metrics, request audits, identity graphs,
+  remediation plans, evidence inspection, ledger verification, policy review,
+  API keys, and demo discovery.
+- **Evidence intelligence** for PDFs, images, OCR, Office files, archives,
+  SQLite snapshots, metadata, and free text.
+- **Authorized exposure discovery** for public URLs, web archives, search APIs,
+  breach metadata, and public profiles — passive checks only, disabled by
+  default.
+- **A step dependency graph** that validates ordering and renders as Mermaid,
+  Graphviz DOT, JSON, or an interactive console view.
 
 ## Quickstart
 
@@ -577,6 +619,32 @@ authentication and the default attestation key. Use one API key per operator,
 scope keys to a tenant, keep a wildcard admin key offline, and scrape `/metrics`
 with a dedicated token. See [SECURITY.md](SECURITY.md) for reporting guidance
 and [`deploy/kubernetes`](deploy/kubernetes) for hardening notes.
+
+## Release verification
+
+`v1.1.0` is the first tagged stable release. The release gate is:
+
+```bash
+make check                 # ruff, pytest, console typecheck and production build
+docker build -t erasureproof .
+docker run --rm -p 18000:8000 erasureproof
+curl -fsS localhost:18000/healthz
+```
+
+CI runs lint, the full test suite, and the production console build on every
+push and pull request. The hosted deployment is smoke-tested for health,
+readiness, sandbox creation, audit execution, attestation verification, and
+ledger integrity. See [CHANGELOG.md](CHANGELOG.md) for the release history.
+
+## Sponsor ErasureProof
+
+If ErasureProof saves you time, you can support continued development through
+[GitHub Sponsors](https://github.com/sponsors/dsk-dev-ai). Sponsorship funds
+connector coverage, regression tests, and hosted demo infrastructure.
+
+<p align="center">
+  <a href="https://github.com/sponsors/dsk-dev-ai"><img src="https://img.shields.io/badge/Sponsor%20Darshan%20Kachare-%E2%9D%A4-db2777?style=for-the-badge" alt="Sponsor Darshan Kachare on GitHub"></a>
+</p>
 
 ## License
 
