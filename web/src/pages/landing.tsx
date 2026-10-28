@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -241,7 +241,6 @@ function HeroConsole() {
 
 export function LandingPage() {
   const { theme, toggle } = useTheme();
-  const navigate = useNavigate();
   const seed = useSeedDemo();
   const sandboxMutation = useCreateSandbox();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -268,7 +267,7 @@ export function LandingPage() {
         const result = await seed.mutateAsync();
         const tenantId = result.tenant_id as string | undefined;
         if (tenantId) window.localStorage.setItem("erasureproof.tenant", tenantId);
-        navigate("/app");
+        window.location.assign("/app");
       } catch (fallbackError) {
         toast.error(
           fallbackError instanceof Error ? fallbackError.message : "Could not open the demo workspace",
@@ -279,7 +278,7 @@ export function LandingPage() {
 
   const closeSandbox = () => {
     setSandboxOpen(false);
-    navigate("/app");
+    window.location.assign("/app");
   };
 
   return (

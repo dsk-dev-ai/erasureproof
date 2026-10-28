@@ -2,6 +2,10 @@
 
 **Proof-of-erasure for every copy of personal data.**
 
+[Live console](https://erasureproof.onrender.com/console) ·
+[API documentation](https://erasureproof.onrender.com/docs) ·
+[Python SDK](sdk/python)
+
 ErasureProof is a deletion-audit and remediation engine. It reconstructs a
 person's identity from current and historical identifiers, finds their records
 across databases, replicas, search indexes, analytics, support systems, logs,
@@ -198,8 +202,9 @@ authenticated request, so private artifacts never require a public URL.
 
 ### Hosted demo and developer API
 
-The public deployment runs the console at `/console`, OpenAPI at `/docs`, and the
-API under `/v1`. Create a free isolated sandbox with a one-time API key:
+The hosted demo runs at <https://erasureproof.onrender.com>: the console is at
+`/console`, OpenAPI at `/docs`, and the API under `/v1`. Create a free isolated
+sandbox with a one-time API key:
 
 ```bash
 curl -s -X POST "$BASE_URL/v1/onboarding/sandbox" \
@@ -212,7 +217,7 @@ Use the returned key with the Python SDK:
 ```python
 from erasureproof_sdk import create_sandbox
 
-client, sandbox = create_sandbox("https://your-host")
+client, sandbox = create_sandbox("https://erasureproof.onrender.com")
 run = client.run_request(sandbox["sample_request_id"], remediate=False)
 print(run["status"], run["attestation"]["signature"])
 ```

@@ -15,7 +15,8 @@ interface TenantContextValue {
 const TenantContext = createContext<TenantContextValue | null>(null);
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
-  const { data: tenants = [], isLoading } = useTenants();
+  const [tokenPresent, setTokenPresent] = useState(() => Boolean(getApiToken()));
+  const { data: tenants = [], isLoading } = useTenants(tokenPresent);
   const [tokenOpen, setTokenOpen] = useState(false);
   const [tenantId, setTenantIdState] = useState<string | undefined>(() => {
     if (typeof window === "undefined") return undefined;
@@ -43,11 +44,14 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     const onUnauthorized = () => {
       if (!getApiToken()) setTokenOpen(true);
     };
+    const onTokenChanged = () => setTokenPresent(Boolean(getApiToken()));
     window.addEventListener("erasureproof:show-token", open);
     window.addEventListener("erasureproof:unauthorized", onUnauthorized);
+    window.addEventListener("erasureproof:token-changed", onTokenChanged);
     return () => {
       window.removeEventListener("erasureproof:show-token", open);
       window.removeEventListener("erasureproof:unauthorized", onUnauthorized);
+      window.removeEventListener("erasureproof:token-changed", onTokenChanged);
     };
   }, []);
 

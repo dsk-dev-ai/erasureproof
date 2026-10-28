@@ -2,6 +2,23 @@
 
 All notable changes are recorded here. ErasureProof follows semantic versioning.
 
+## Unreleased
+
+### Added
+
+- Self-service sandbox onboarding with isolated tenants, seeded connectors, a
+  sample deletion request, per-IP/global quotas, and one-time administrator keys.
+- Tenant API key lifecycle: hashed storage, roles, expiry, rotation, revocation,
+  limits, and audit events.
+- Console API key management page and one-time sandbox onboarding dialog.
+- Python SDK, API reference, Render blueprint, and deployment guide.
+
+### Fixed
+
+- Connector evidence is now attributed to the audited request, so tenant-scoped
+  evidence listing and overview counts include discovery snapshots.
+- PostgreSQL URLs are normalized to the Psycopg driver automatically.
+
 ## 1.0.0
 
 ### Added

@@ -8,8 +8,8 @@ export function useOverview(tenantId?: string) {
   });
 }
 
-export function useTenants() {
-  return useQuery({ queryKey: ["tenants"], queryFn: api.tenants });
+export function useTenants(enabled = true) {
+  return useQuery({ queryKey: ["tenants"], queryFn: api.tenants, enabled });
 }
 
 export function useRequests(tenantId?: string) {

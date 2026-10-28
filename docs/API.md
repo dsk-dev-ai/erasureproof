@@ -5,7 +5,8 @@ ordered remediation plan, verification checks, and a signed attestation. Every
 route is tenant-scoped. The OpenAPI document is served at `/docs` and
 `/openapi.json`.
 
-- Base URL: your deployment origin, for example `https://erasureproof.onrender.com`
+- Base URL: your deployment origin. Hosted demo: `https://erasureproof.onrender.com`
+- Console: `https://erasureproof.onrender.com/console`
 - Content type: `application/json`
 - Authentication: `Authorization: Bearer <key>` or `X-API-Key: <key>`
 - Versioning: routes are under `/v1`

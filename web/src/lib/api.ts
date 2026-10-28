@@ -34,6 +34,9 @@ export function setApiToken(token: string): void {
   const value = token.trim();
   if (value) window.localStorage.setItem(TOKEN_KEY, value);
   else window.localStorage.removeItem(TOKEN_KEY);
+  window.dispatchEvent(
+    new CustomEvent("erasureproof:token-changed", { detail: value }),
+  );
 }
 
 export function clearApiToken(): void {
