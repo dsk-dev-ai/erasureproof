@@ -16,20 +16,49 @@ import base64
 import hashlib
 import hmac
 import json
+import secrets
 import threading
 import time
 import urllib.request
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import Depends, Header, HTTPException, Request, status
+from sqlalchemy import select
 
 from ..config import Settings
+from ..models.db import ApiKeyRow, get_database
+from ..models.domain import utcnow
 from .deps import get_app_settings
 
 _ROLE_LEVEL = {"viewer": 1, "operator": 2, "admin": 3}
 _JWKS_LOCK = threading.Lock()
 _JWKS_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
+API_KEY_PREFIX = "ep_live_"
+API_KEY_ROLES = {"viewer", "operator", "admin"}
+
+
+def generate_api_key() -> str:
+    """Return a high-entropy API key. Only the holder ever sees this value."""
+
+    return API_KEY_PREFIX + secrets.token_urlsafe(32)
+
+
+def hash_api_key(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def api_key_prefix(token: str) -> str:
+    return token[:16]
+
+
+def _aware(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
 
 
 @dataclass(frozen=True)
@@ -38,6 +67,7 @@ class Principal:
     role: str
     tenant_id: str | None
     method: str
+    credential_id: str | None = None
 
     @property
     def is_admin(self) -> bool:
@@ -112,19 +142,57 @@ def _configured_api_keys(settings: Settings) -> list[dict[str, Any]]:
     return entries
 
 
-def _api_key_principal(token: str, settings: Settings) -> Principal:
+def _static_api_key_principal(token: str, settings: Settings) -> Principal | None:
     matched: dict[str, Any] | None = None
     for entry in _configured_api_keys(settings):
         if hmac.compare_digest(token, entry["key"]):
             matched = entry
     if matched is None:
-        raise _unauthorized("invalid API key")
+        return None
     return Principal(
         subject=matched["subject"],
         role=matched["role"],
         tenant_id=matched["tenant_id"],
         method="api_key",
     )
+
+
+def _database_api_key_principal(token: str) -> Principal | None:
+    digest = hash_api_key(token)
+    database = get_database()
+    now = utcnow()
+    with database.session() as session:
+        row = session.scalar(select(ApiKeyRow).where(ApiKeyRow.key_hash == digest))
+        if row is None or row.revoked_at is not None:
+            return None
+        expires_at = _aware(row.expires_at)
+        if expires_at is not None and expires_at <= now:
+            raise _unauthorized("API key expired")
+        last_used = _aware(row.last_used_at)
+        if last_used is None or (now - last_used).total_seconds() >= 60:
+            row.last_used_at = now
+        return Principal(
+            subject=row.subject,
+            role=row.role,
+            tenant_id=row.tenant_id,
+            method="api_key",
+            credential_id=row.id,
+        )
+
+
+def _api_key_principal(token: str, settings: Settings) -> Principal:
+    static = _static_api_key_principal(token, settings)
+    if static is not None:
+        return static
+    try:
+        principal = _database_api_key_principal(token)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="API key store unavailable") from exc
+    if principal is None:
+        raise _unauthorized("invalid API key")
+    return principal
 
 
 def _b64url_decode(value: str) -> bytes:

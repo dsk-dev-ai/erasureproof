@@ -1,0 +1,53 @@
+services:
+  - type: web
+    name: erasureproof
+    runtime: docker
+    plan: free
+    region: oregon
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: ERASUREPROOF_ENVIRONMENT
+        value: production
+      - key: ERASUREPROOF_AUTH_MODE
+        value: api_key
+      - key: ERASUREPROOF_DATABASE_URL
+        fromDatabase:
+          name: erasureproof-db
+          property: connectionString
+      - key: ERASUREPROOF_DATA_DIR
+        value: /data
+      - key: ERASUREPROOF_POLICY_DIR
+        value: /app/policies
+      - key: ERASUREPROOF_WEB_DIR
+        value: /app/web/dist
+      - key: ERASUREPROOF_DEMO_ENABLED
+        value: "false"
+      - key: ERASUREPROOF_SELF_SERVE_ENABLED
+        value: "true"
+      - key: ERASUREPROOF_SANDBOX_TTL_HOURS
+        value: "168"
+      - key: ERASUREPROOF_SANDBOX_DAILY_LIMIT
+        value: "100"
+      - key: ERASUREPROOF_SANDBOX_PER_IP_DAILY_LIMIT
+        value: "3"
+      - key: ERASUREPROOF_REQUIRE_REMEDIATION_APPROVAL
+        value: "false"
+      - key: ERASUREPROOF_RATE_LIMIT_PER_MINUTE
+        value: "300"
+      - key: ERASUREPROOF_TRUST_PROXY_HEADERS
+        value: "true"
+      - key: ERASUREPROOF_HSTS_SECONDS
+        value: "31536000"
+      - key: ERASUREPROOF_EXPOSURE_ENABLED
+        value: "false"
+      - key: ERASUREPROOF_ATTESTATION_KEY
+        generateValue: true
+      - key: ERASUREPROOF_API_KEYS
+        sync: false
+
+databases:
+  - name: erasureproof-db
+    plan: free
+    region: oregon
+    postgresMajorVersion: "16"

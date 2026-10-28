@@ -62,6 +62,14 @@ class Settings(BaseSettings):
     oidc_clock_skew_seconds: int = 60
     oidc_jwks_cache_seconds: int = 300
 
+    # Self-service developer onboarding. Disabled by default; the public demo
+    # enables it with short-lived, tenant-scoped sandbox keys.
+    self_serve_enabled: bool = False
+    sandbox_ttl_hours: int = 168
+    sandbox_daily_limit: int = 100
+    sandbox_per_ip_daily_limit: int = 3
+    api_key_max_per_tenant: int = 25
+
     # Destructive remediation can require an explicit, time-limited approval
     # recorded by a second administrator.
     require_remediation_approval: bool = False
@@ -103,6 +111,11 @@ class Settings(BaseSettings):
         return self.environment.strip().lower() in {"production", "prod"}
 
     def model_post_init(self, __context: object) -> None:
+        for prefix in ("postgres://", "postgresql://"):
+            if self.database_url.startswith(prefix):
+                self.database_url = "postgresql+psycopg://" + self.database_url[len(prefix) :]
+                break
+
         self.data_dir = Path(self.data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
@@ -182,6 +195,10 @@ def validate_runtime_settings(settings: Settings) -> list[str]:
         errors.append("ERASUREPROOF_ATTESTATION_KEY must be changed in production")
     if settings.approval_ttl_hours < 1:
         errors.append("ERASUREPROOF_APPROVAL_TTL_HOURS must be at least 1")
+    if settings.sandbox_ttl_hours < 1:
+        errors.append("ERASUREPROOF_SANDBOX_TTL_HOURS must be at least 1")
+    if settings.api_key_max_per_tenant < 1:
+        errors.append("ERASUREPROOF_API_KEY_MAX_PER_TENANT must be at least 1")
 
     warnings: list[str] = []
     if settings.is_production and settings.demo_enabled:
@@ -196,6 +213,8 @@ def validate_runtime_settings(settings: Settings) -> list[str]:
         warnings.append("local rate limiting is disabled in production")
     if settings.is_production and settings.trust_proxy_headers:
         warnings.append("proxy headers are trusted; ensure only the ingress can reach the API")
+    if settings.self_serve_enabled:
+        warnings.append("self-service sandbox onboarding is enabled")
 
     if errors:
         raise ValueError("; ".join(errors))

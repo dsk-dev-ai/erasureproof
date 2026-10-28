@@ -91,6 +91,7 @@ export interface Overview {
   features: {
     exposure_enabled: boolean;
     demo_enabled: boolean;
+    self_serve_enabled?: boolean;
     environment: string;
     auth_mode: string;
     approval_required: boolean;
@@ -243,4 +244,36 @@ export interface ExposureReport {
   errors: string[];
   collectors: string[];
   report_evidence_id: string;
+}
+
+export interface ApiKey {
+  id: string;
+  tenant_id: string;
+  name: string;
+  key_prefix: string;
+  role: string;
+  subject: string;
+  created_by: string;
+  created_at: string;
+  expires_at: string | null;
+  last_used_at: string | null;
+  revoked_at: string | null;
+}
+
+export interface ApiKeyCreated extends ApiKey {
+  api_key: string;
+  warning: string;
+}
+
+export interface Sandbox {
+  tenant_id: string;
+  tenant_name: string;
+  api_key: string;
+  key_id: string;
+  key_prefix: string;
+  role: "admin";
+  expires_at: string;
+  sample_request_id: string;
+  sample_email: string;
+  quickstart: Record<string, string>;
 }

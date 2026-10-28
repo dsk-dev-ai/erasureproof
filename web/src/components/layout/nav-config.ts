@@ -4,6 +4,7 @@ import {
   Cable,
   Database,
   FileSearch,
+  KeyRound,
   LayoutDashboard,
   ScanSearch,
   Settings,
@@ -17,6 +18,7 @@ export const navItems = [
   { href: "/app/connectors", label: "Connectors", icon: Cable },
   { href: "/app/exposure", label: "Exposure", icon: ScanSearch },
   { href: "/app/evidence", label: "Evidence & ledger", icon: Database },
+  { href: "/app/api-keys", label: "API keys", icon: KeyRound },
   { href: "/app/docs", label: "Documentation", icon: BookOpen },
   { href: "/app/settings", label: "Settings", icon: Settings },
 ];

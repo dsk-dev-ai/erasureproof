@@ -1,4 +1,6 @@
 import type {
+  ApiKey,
+  ApiKeyCreated,
   Approval,
   AuditEvent,
   Connector,
@@ -8,6 +10,7 @@ import type {
   Overview,
   RequestOut,
   RunResponse,
+  Sandbox,
   StepGraph,
   Subject,
   Tenant,
@@ -193,6 +196,28 @@ export const api = {
   policies: () =>
     request<{ jurisdictions: string[]; policies: Record<string, unknown> }>("/policies"),
   seedDemo: () => request<Record<string, unknown>>("/demo/seed", { method: "POST" }),
+  createSandbox: (body: { workspace_name?: string; jurisdiction?: "gdpr" | "ccpa" } = {}) =>
+    request<Sandbox>("/onboarding/sandbox", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  apiKeys: (tenantId?: string, includeRevoked = false) =>
+    request<ApiKey[]>(
+      `/api-keys${query({ tenant_id: tenantId, include_revoked: includeRevoked })}`,
+    ),
+  createApiKey: (body: {
+    tenant_id?: string;
+    name: string;
+    role: "viewer" | "operator" | "admin";
+    expires_in_days?: number | null;
+  }) =>
+    request<ApiKeyCreated>("/api-keys", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  rotateApiKey: (id: string) =>
+    request<ApiKeyCreated>(`/api-keys/${id}/rotate`, { method: "POST" }),
+  revokeApiKey: (id: string) => request<void>(`/api-keys/${id}`, { method: "DELETE" }),
   exposure: (body: {
     email?: string;
     phone?: string;

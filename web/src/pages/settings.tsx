@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Check,
@@ -34,6 +35,8 @@ const envVars = [
   ["ERASUREPROOF_RATE_LIMIT_PER_MINUTE", "0", "Per-process request limit for /v1 endpoints."],
   ["ERASUREPROOF_METRICS_TOKEN", "—", "Bearer token for Prometheus scraping when set."],
   ["ERASUREPROOF_DEMO_ENABLED", "true", "Expose the non-destructive demo bootstrap endpoint."],
+  ["ERASUREPROOF_SELF_SERVE_ENABLED", "false", "Allow public sandbox tenant and API-key provisioning."],
+  ["ERASUREPROOF_SANDBOX_TTL_HOURS", "168", "Lifetime of self-service sandbox credentials."],
   ["ERASUREPROOF_EXPOSURE_ENABLED", "false", "Enable passive public-source collection."],
   ["ERASUREPROOF_DATABASE_URL", "sqlite:///…", "SQLite or PostgreSQL metadata store."],
   ["ERASUREPROOF_DATA_DIR", "./.erasureproof", "Evidence objects, ledger, and attestations."],
@@ -199,7 +202,12 @@ export function SettingsPage() {
               placeholder="Paste bearer token or API key"
               className="h-10 w-full rounded-xl border border-border/80 bg-background/60 px-3 font-mono text-xs outline-none focus:border-primary/50"
             />
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
+              <Link to="/app/api-keys">
+                <Button variant="outline" size="sm">
+                  <KeyRound className="h-3.5 w-3.5" /> Manage keys
+                </Button>
+              </Link>
               <Button variant="ghost" size="sm" onClick={() => void clearToken()}>
                 <Trash2 className="h-3.5 w-3.5" /> Clear
               </Button>

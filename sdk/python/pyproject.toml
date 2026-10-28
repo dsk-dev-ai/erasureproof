@@ -1,0 +1,16 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "erasureproof-sdk"
+version = "1.0.0"
+description = "Dependency-free Python client for the ErasureProof deletion-audit API."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Darshan Kachare" }]
+dependencies = []
+
+[tool.hatch.build.targets.wheel]
+packages = ["erasureproof_sdk"]

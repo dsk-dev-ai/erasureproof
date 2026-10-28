@@ -168,3 +168,44 @@ export function useVerifyEvidence() {
     onSuccess: () => void client.invalidateQueries({ queryKey: ["evidence"] }),
   });
 }
+
+export function useCreateSandbox() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: api.createSandbox,
+    onSuccess: () => void client.invalidateQueries(),
+  });
+}
+
+export function useApiKeys(tenantId?: string, includeRevoked = false) {
+  return useQuery({
+    queryKey: ["api-keys", tenantId ?? "all", includeRevoked],
+    queryFn: () => api.apiKeys(tenantId, includeRevoked),
+    enabled: Boolean(tenantId),
+    retry: false,
+  });
+}
+
+export function useCreateApiKey() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: api.createApiKey,
+    onSuccess: () => void client.invalidateQueries({ queryKey: ["api-keys"] }),
+  });
+}
+
+export function useRotateApiKey() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: api.rotateApiKey,
+    onSuccess: () => void client.invalidateQueries({ queryKey: ["api-keys"] }),
+  });
+}
+
+export function useRevokeApiKey() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: api.revokeApiKey,
+    onSuccess: () => void client.invalidateQueries({ queryKey: ["api-keys"] }),
+  });
+}

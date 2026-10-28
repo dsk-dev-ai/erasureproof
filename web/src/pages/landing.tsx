@@ -28,15 +28,19 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Logo } from "@/components/brand/logo";
+import { SandboxDialog } from "@/components/auth/sandbox-dialog";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/components/theme-provider";
-import { useSeedDemo } from "@/hooks/use-api";
+import { useCreateSandbox, useSeedDemo } from "@/hooks/use-api";
+import { setApiToken } from "@/lib/api";
+import type { Sandbox } from "@/lib/types";
 import { EASE, Reveal, Stagger, StaggerItem } from "@/components/motion/motion";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
   { href: "#product", label: "Product" },
   { href: "#workflow", label: "How it works" },
+  { href: "#developers", label: "API" },
   { href: "#evidence", label: "Evidence" },
   { href: "#security", label: "Security" },
 ];
@@ -239,17 +243,43 @@ export function LandingPage() {
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
   const seed = useSeedDemo();
+  const sandboxMutation = useCreateSandbox();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sandbox, setSandbox] = useState<Sandbox | null>(null);
+  const [sandboxOpen, setSandboxOpen] = useState(false);
+  const busy = seed.isPending || sandboxMutation.isPending;
 
   const openDemo = async () => {
     try {
-      const result = await seed.mutateAsync();
-      const tenantId = result.tenant_id as string | undefined;
-      if (tenantId) window.localStorage.setItem("erasureproof.tenant", tenantId);
-      navigate("/app");
+      const result = await sandboxMutation.mutateAsync({
+        workspace_name: "Developer sandbox",
+      });
+      setApiToken(result.api_key);
+      window.localStorage.setItem("erasureproof.tenant", result.tenant_id);
+      setSandbox(result);
+      setSandboxOpen(true);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not open the demo workspace");
+      const message = error instanceof Error ? error.message : "Could not open the demo workspace";
+      if (!message.toLowerCase().includes("disabled")) {
+        toast.error(message);
+        return;
+      }
+      try {
+        const result = await seed.mutateAsync();
+        const tenantId = result.tenant_id as string | undefined;
+        if (tenantId) window.localStorage.setItem("erasureproof.tenant", tenantId);
+        navigate("/app");
+      } catch (fallbackError) {
+        toast.error(
+          fallbackError instanceof Error ? fallbackError.message : "Could not open the demo workspace",
+        );
+      }
     }
+  };
+
+  const closeSandbox = () => {
+    setSandboxOpen(false);
+    navigate("/app");
   };
 
   return (
@@ -285,9 +315,9 @@ export function LandingPage() {
                 Open console <ArrowUpRight className="h-3.5 w-3.5" />
               </Button>
             </Link>
-            <Button variant="brand" size="sm" onClick={() => void openDemo()} disabled={seed.isPending}>
+            <Button variant="brand" size="sm" onClick={() => void openDemo()} disabled={busy}>
               <Sparkles className="h-3.5 w-3.5" />
-              {seed.isPending ? "Preparing…" : "Run live demo"}
+              {busy ? "Preparing…" : "Start sandbox"}
             </Button>
             <Button
               variant="ghost"
@@ -381,8 +411,8 @@ export function LandingPage() {
                 transition={{ duration: 0.7, delay: 0.24, ease: EASE }}
                 className="mt-8 flex flex-wrap items-center gap-3"
               >
-                <Button variant="brand" size="lg" onClick={() => void openDemo()} disabled={seed.isPending}>
-                  {seed.isPending ? "Building workspace…" : "Run a live deletion audit"}
+                <Button variant="brand" size="lg" onClick={() => void openDemo()} disabled={busy}>
+                  {busy ? "Building workspace…" : "Run a live deletion audit"}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
                 <Link to="/app/docs">
@@ -576,6 +606,72 @@ export function LandingPage() {
           </Stagger>
         </section>
 
+        <section id="developers" className="border-y border-border/50 bg-card/20">
+          <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-20 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8 lg:py-24">
+            <Reveal>
+              <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
+                Built for developers
+              </p>
+              <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
+                One API from request to signed proof.
+              </h2>
+              <p className="mt-4 max-w-lg leading-7 text-muted-foreground">
+                Create a free isolated sandbox in seconds. Submit deletion requests, run the
+                dependency-ordered audit, inspect findings, and retrieve a signed attestation —
+                all through a tenant-scoped REST API.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Button variant="brand" onClick={() => void openDemo()} disabled={busy}>
+                  <KeyRound className="h-4 w-4" /> Create sandbox API key
+                </Button>
+                <a href="/docs" target="_blank" rel="noreferrer">
+                  <Button variant="outline">
+                    OpenAPI reference <ArrowUpRight className="h-3.5 w-3.5" />
+                  </Button>
+                </a>
+              </div>
+              <div className="mt-7 grid gap-2 sm:grid-cols-3">
+                {[
+                  ["Hashed keys", "Shown once, revocable, expiring"],
+                  ["Tenant isolation", "Server-side scoping on every route"],
+                  ["Audit trail", "Every key and remediation event"],
+                ].map(([title, body]) => (
+                  <div key={title} className="rounded-xl border border-border/60 bg-background/40 p-3">
+                    <p className="text-[11px] font-semibold">{title}</p>
+                    <p className="mt-1 text-[10px] leading-4 text-muted-foreground">{body}</p>
+                  </div>
+                ))}
+              </div>
+            </Reveal>
+
+            <Reveal delay={0.08}>
+              <div className="overflow-hidden rounded-3xl border border-border/70 bg-[#071017] shadow-2xl">
+                <div className="flex items-center justify-between border-b border-white/5 px-4 py-3 text-[10px] uppercase tracking-widest text-slate-500">
+                  <span>quickstart.sh</span>
+                  <span className="flex items-center gap-1.5 text-emerald-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> REST + JSON
+                  </span>
+                </div>
+                <pre className="overflow-x-auto p-4 font-mono text-[10px] leading-5 text-slate-300">{`# 1. Create a sandbox key
+curl -X POST "$BASE_URL/v1/onboarding/sandbox" \
+  -H 'content-type: application/json' \
+  -d '{"workspace_name":"Acme privacy"}'
+
+# 2. Run the seeded deletion audit
+curl -X POST "$BASE_URL/v1/requests/$REQUEST_ID/run?remediate=false" \
+  -H "Authorization: Bearer $ERASUREPROOF_API_KEY"
+
+# 3. Retrieve the signed attestation
+curl "$BASE_URL/v1/requests/$REQUEST_ID/attestation" \
+  -H "Authorization: Bearer $ERASUREPROOF_API_KEY"`}</pre>
+                <div className="border-t border-white/5 px-4 py-3 font-mono text-[10px] text-slate-500">
+                  OpenAPI: /docs · Console: /console · SDK: sdk/python
+                </div>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
         <section id="evidence" className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8 lg:pb-28">
           <div className="grid items-center gap-10 rounded-[32px] border border-border/70 bg-card/40 p-6 sm:p-10 lg:grid-cols-2 lg:p-14">
             <Reveal>
@@ -687,8 +783,8 @@ export function LandingPage() {
                 a non-deletion request, and a pending ticket.
               </p>
               <div className="mt-8 flex flex-wrap justify-center gap-3">
-                <Button variant="brand" size="lg" onClick={() => void openDemo()} disabled={seed.isPending}>
-                  {seed.isPending ? "Preparing workspace…" : "Launch the console"}
+                <Button variant="brand" size="lg" onClick={() => void openDemo()} disabled={busy}>
+                  {busy ? "Preparing workspace…" : "Create a free sandbox"}
                   <ChevronRight className="h-4 w-4" />
                 </Button>
                 <a href="https://github.com/dsk-dev-ai/erasureproof" target="_blank" rel="noreferrer">
@@ -698,7 +794,7 @@ export function LandingPage() {
                 </a>
               </div>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-success" /> No signup</span>
+                <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-success" /> Free sandbox key</span>
                 <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-success" /> Local data</span>
                 <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-success" /> Open source</span>
               </div>
@@ -706,6 +802,8 @@ export function LandingPage() {
           </Reveal>
         </section>
       </main>
+
+      <SandboxDialog sandbox={sandbox} open={sandboxOpen} onClose={closeSandbox} />
 
       <footer className="border-t border-border/60">
         <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-10 sm:px-6 lg:px-8">

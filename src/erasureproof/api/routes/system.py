@@ -46,6 +46,7 @@ def readyz(database: Database = Depends(get_db)) -> ReadinessOut | JSONResponse:
         "requests",
         "approvals",
         "audit_events",
+        "api_keys",
     }
     try:
         with database.session() as session:

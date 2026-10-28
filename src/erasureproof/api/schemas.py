@@ -173,3 +173,47 @@ class ExposureScanRequest(BaseModel):
     urls: list[str] = Field(default_factory=list)
     collectors: list[str] | None = None
     authorized: bool = False
+
+
+class ApiKeyCreate(BaseModel):
+    tenant_id: str | None = None
+    name: str = Field(default="API key", min_length=1, max_length=100)
+    role: Literal["viewer", "operator", "admin"] = "operator"
+    expires_in_days: int | None = Field(default=90, ge=1, le=3650)
+
+
+class ApiKeyOut(BaseModel):
+    id: str
+    tenant_id: str
+    name: str
+    key_prefix: str
+    role: str
+    subject: str
+    created_by: str
+    created_at: datetime
+    expires_at: datetime | None = None
+    last_used_at: datetime | None = None
+    revoked_at: datetime | None = None
+
+
+class ApiKeyCreated(ApiKeyOut):
+    api_key: str
+    warning: str = "Store this key now. It is shown only once."
+
+
+class SandboxCreate(BaseModel):
+    workspace_name: str = Field(default="Sandbox", min_length=1, max_length=80)
+    jurisdiction: Literal["gdpr", "ccpa"] = "gdpr"
+
+
+class SandboxOut(BaseModel):
+    tenant_id: str
+    tenant_name: str
+    api_key: str
+    key_id: str
+    key_prefix: str
+    role: Literal["admin"] = "admin"
+    expires_at: datetime
+    sample_request_id: str
+    sample_email: str
+    quickstart: dict[str, str]

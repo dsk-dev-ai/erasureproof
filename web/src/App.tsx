@@ -13,6 +13,7 @@ const ConnectorsPage = lazy(() => import("@/pages/connectors").then((module) => 
 const ExposurePage = lazy(() => import("@/pages/exposure").then((module) => ({ default: module.ExposurePage })));
 const EvidencePage = lazy(() => import("@/pages/evidence").then((module) => ({ default: module.EvidencePage })));
 const SettingsPage = lazy(() => import("@/pages/settings").then((module) => ({ default: module.SettingsPage })));
+const ApiKeysPage = lazy(() => import("@/pages/api-keys").then((module) => ({ default: module.ApiKeysPage })));
 const DocsPage = lazy(() => import("@/pages/docs").then((module) => ({ default: module.DocsPage })));
 const NotFoundPage = lazy(() => import("@/pages/not-found").then((module) => ({ default: module.NotFoundPage })));
 
@@ -45,6 +46,7 @@ export function App() {
             <Route path="exposure" element={<ExposurePage />} />
             <Route path="evidence" element={<EvidencePage />} />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="api-keys" element={<ApiKeysPage />} />
             <Route path="docs" element={<DocsPage />} />
             <Route path="docs/:slug" element={<DocsPage />} />
           </Route>

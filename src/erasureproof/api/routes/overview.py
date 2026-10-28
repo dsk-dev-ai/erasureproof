@@ -187,6 +187,7 @@ def overview(
         "features": {
             "exposure_enabled": settings.exposure_enabled,
             "demo_enabled": settings.demo_enabled,
+            "self_serve_enabled": settings.self_serve_enabled,
             "environment": settings.environment,
             "auth_mode": settings.auth_mode.lower(),
             "approval_required": settings.require_remediation_approval,

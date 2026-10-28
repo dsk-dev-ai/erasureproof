@@ -8,13 +8,16 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import FileResponse
 
 from . import __version__
 from .api.routes import (
+    api_keys,
     connectors,
     exposure,
     governance,
+    onboarding,
     overview,
     requests,
     subjects,
@@ -68,8 +71,27 @@ def create_app() -> FastAPI:
         version=__version__,
         description=(
             "Find every copy of a person's data, remediate it in dependency order, "
-            "verify the result and issue a signed proof of erasure."
+            "verify the result and issue a signed proof of erasure.\n\n"
+            "Authenticate with `Authorization: Bearer <api_key>` or `X-API-Key`. "
+            "Create a free sandbox with `POST /v1/onboarding/sandbox`."
         ),
+        contact={
+            "name": "ErasureProof",
+            "url": "https://github.com/dsk-dev-ai/erasureproof",
+        },
+        license_info={"name": "Apache-2.0"},
+        openapi_tags=[
+            {"name": "system", "description": "Health, metrics, policies and integrity."},
+            {"name": "onboarding", "description": "Self-service sandbox provisioning."},
+            {"name": "tenants", "description": "Workspace lifecycle and isolation."},
+            {"name": "api-keys", "description": "Hashed, revocable tenant API keys."},
+            {"name": "subjects", "description": "Current and historical identity graphs."},
+            {"name": "connectors", "description": "Customer-system discovery connectors."},
+            {"name": "requests", "description": "Deletion audits, plans and attestations."},
+            {"name": "governance", "description": "Approvals, audit events and exports."},
+            {"name": "overview", "description": "Workspace metrics and operational state."},
+            {"name": "exposure", "description": "Authorized passive exposure checks."},
+        ],
         lifespan=lifespan,
     )
     if settings.cors_origin_list:
@@ -83,6 +105,8 @@ def create_app() -> FastAPI:
         )
     application.add_middleware(ProductionMiddleware)
     application.include_router(system.router, tags=["system"])
+    application.include_router(onboarding.router, tags=["onboarding"])
+    application.include_router(api_keys.router, tags=["api-keys"])
     application.include_router(governance.router, tags=["governance"])
     application.include_router(overview.router, tags=["overview"])
     application.include_router(tenants.router, tags=["tenants"])
@@ -99,6 +123,8 @@ def create_app() -> FastAPI:
             "docs": "/docs",
             "health": "/healthz",
             "console": "/console",
+            "sandbox": "/v1/onboarding/sandbox",
+            "api_keys": "/v1/api-keys",
         }
 
     @application.api_route("/console", methods=["GET", "HEAD"], include_in_schema=False)
@@ -124,6 +150,38 @@ def create_app() -> FastAPI:
             )
             return FileResponse(candidate, headers={"Cache-Control": cache})
         return FileResponse(index, headers={"Cache-Control": "no-cache"})
+
+    def custom_openapi() -> dict:
+        if application.openapi_schema:
+            return application.openapi_schema
+        schema = get_openapi(
+            title=application.title,
+            version=application.version,
+            description=application.description,
+            routes=application.routes,
+            contact=application.contact,
+            license_info=application.license_info,
+            tags=application.openapi_tags,
+        )
+        components = schema.setdefault("components", {})
+        components.setdefault("securitySchemes", {}).update(
+            {
+                "BearerAuth": {"type": "http", "scheme": "bearer"},
+                "ApiKeyAuth": {"type": "apiKey", "in": "header", "name": "X-API-Key"},
+            }
+        )
+        for path, methods in schema.get("paths", {}).items():
+            if not path.startswith("/v1") or path == "/v1/onboarding/sandbox":
+                continue
+            for operation in methods.values():
+                if isinstance(operation, dict):
+                    operation.setdefault(
+                        "security", [{"BearerAuth": []}, {"ApiKeyAuth": []}]
+                    )
+        application.openapi_schema = schema
+        return schema
+
+    application.openapi = custom_openapi  # type: ignore[method-assign]
 
     return application
 

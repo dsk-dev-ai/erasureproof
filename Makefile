@@ -1,7 +1,7 @@
 PYTHON ?= .venv/bin/python
 UV ?= uv
 
-.PHONY: install demo test lint serve docker web-install web-dev web-build web-check check
+.PHONY: install demo test lint serve docker web-install web-dev web-build web-check check sdk-check
 
 install:
 	$(UV) venv .venv
@@ -29,7 +29,10 @@ web-build:
 web-check:
 	cd web && npm run typecheck && npm run build
 
-check: lint test web-check
+sdk-check:
+	$(PYTHON) -m compileall -q sdk/python
+
+check: lint test sdk-check web-check
 
 serve:
 	$(PYTHON) -m erasureproof.cli serve --reload

@@ -196,6 +196,31 @@ When authentication is enabled, open the key button in the console top bar (or
 Settings → API access) and paste a bearer token. Evidence downloads use the same
 authenticated request, so private artifacts never require a public URL.
 
+### Hosted demo and developer API
+
+The public deployment runs the console at `/console`, OpenAPI at `/docs`, and the
+API under `/v1`. Create a free isolated sandbox with a one-time API key:
+
+```bash
+curl -s -X POST "$BASE_URL/v1/onboarding/sandbox" \
+  -H 'content-type: application/json' \
+  -d '{"workspace_name":"Acme privacy"}'
+```
+
+Use the returned key with the Python SDK:
+
+```python
+from erasureproof_sdk import create_sandbox
+
+client, sandbox = create_sandbox("https://your-host")
+run = client.run_request(sandbox["sample_request_id"], remediate=False)
+print(run["status"], run["attestation"]["signature"])
+```
+
+See [`docs/API.md`](docs/API.md) for endpoint, role, approval, and error
+reference, and [`docs/DEPLOY_RENDER.md`](docs/DEPLOY_RENDER.md) for the Render
+deployment profile.
+
 ### Docker
 
 ```bash
@@ -436,6 +461,8 @@ ERASUREPROOF_DATABASE_URL=sqlite:///./.erasureproof/erasureproof.db
 ERASUREPROOF_DATA_DIR=./.erasureproof
 ERASUREPROOF_WEB_DIR=./web/dist
 ERASUREPROOF_DEMO_ENABLED=true
+ERASUREPROOF_SELF_SERVE_ENABLED=false
+ERASUREPROOF_SANDBOX_TTL_HOURS=168
 ERASUREPROOF_ATTESTATION_KEY=change-me
 ERASUREPROOF_POLICY_DIR=./policies
 ERASUREPROOF_DEFAULT_JURISDICTION=gdpr
@@ -494,6 +521,7 @@ The console reads the same REST API as the CLI. It contains:
 | Exposure | Authorized passive scan of public sources with safety guardrails. |
 | Evidence & ledger | Artifact integrity checks, hash-chain verification, and the policy matrix. |
 | Settings | Theme, workspace, bearer token, audit export, runtime, and environment configuration. |
+| API keys | Create, rotate, revoke, and audit tenant-scoped keys. |
 | Docs | Product, architecture, API, deployment, and security documentation. |
 
 Animation is implemented with Framer Motion, charts with Recharts, and server
