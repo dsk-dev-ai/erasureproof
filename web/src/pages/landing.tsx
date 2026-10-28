@@ -267,7 +267,7 @@ export function LandingPage() {
         const result = await seed.mutateAsync();
         const tenantId = result.tenant_id as string | undefined;
         if (tenantId) window.localStorage.setItem("erasureproof.tenant", tenantId);
-        window.location.assign("/app");
+        window.location.assign(`${import.meta.env.BASE_URL}app`);
       } catch (fallbackError) {
         toast.error(
           fallbackError instanceof Error ? fallbackError.message : "Could not open the demo workspace",
@@ -278,7 +278,7 @@ export function LandingPage() {
 
   const closeSandbox = () => {
     setSandboxOpen(false);
-    window.location.assign("/app");
+    window.location.assign(`${import.meta.env.BASE_URL}app`);
   };
 
   return (
