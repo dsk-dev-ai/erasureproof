@@ -76,6 +76,19 @@ def test_sandbox_is_isolated_and_usable_end_to_end(product_auth) -> None:
     )
     assert attestation.status_code == 200
 
+    evidence = client.get("/v1/evidence", headers=headers)
+    assert evidence.status_code == 200
+    assert evidence.json()["count"] > 0
+    assert all(
+        item["request_id"] == sandbox["sample_request_id"]
+        for item in evidence.json()["items"]
+    )
+
+    overview = client.get(
+        f"/v1/overview?tenant_id={sandbox['tenant_id']}", headers=headers
+    )
+    assert overview.json()["totals"]["evidence"] > 0
+
     keys = client.get("/v1/api-keys", headers=headers)
     assert keys.status_code == 200
     assert len(keys.json()) == 1

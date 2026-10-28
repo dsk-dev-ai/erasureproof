@@ -143,6 +143,7 @@ class FilesystemConnector(BaseConnector):
                         raw,
                         source=f"{self.system_id}:{relative}",
                         captured_at=datetime.now(tz=as_of.tzinfo),
+                        request_id=self.request_id,
                         content_type=str(document.metadata.get("mime", "application/octet-stream")),
                     ).evidence_id
 

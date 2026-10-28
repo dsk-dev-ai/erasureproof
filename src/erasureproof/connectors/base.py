@@ -44,6 +44,7 @@ class BaseConnector(ABC):
         self.system_id = system_id
         self.config = config or {}
         self.evidence_store = evidence_store
+        self.request_id: str | None = None
 
     def capabilities(self) -> set[str]:
         capabilities = {"discover"}
@@ -122,4 +123,9 @@ class BaseConnector(ABC):
     ) -> str:
         if self.evidence_store is None:
             return ""
-        return self.evidence_store.put(content, source=source, captured_at=captured_at).evidence_id
+        return self.evidence_store.put(
+            content,
+            source=source,
+            captured_at=captured_at,
+            request_id=self.request_id,
+        ).evidence_id

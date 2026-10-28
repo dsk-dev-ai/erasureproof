@@ -164,6 +164,9 @@ class ErasureOrchestrator:
         if audit_at.tzinfo is None:
             audit_at = audit_at.replace(tzinfo=timezone.utc)
 
+        for connector in self.connectors:
+            connector.request_id = request_id
+
         policy = self._policy_for(jurisdiction)
         self.ledger.append(
             "discovery.started",
