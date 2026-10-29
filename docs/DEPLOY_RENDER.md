@@ -41,15 +41,16 @@ free-tier quirk.
 1. Create a paid or external PostgreSQL database with automated backups.
 2. Dump the Render database with `pg_dump` and restore it into the new database.
 3. Point `ERASUREPROOF_DATABASE_URL` at the new database and redeploy.
-4. Attach a persistent disk or shared volume to `/data`, or configure durable
-   storage for evidence, ledger, and attestations.
+4. Attach a persistent disk or shared volume to `/data`. ErasureProof stores
+   evidence, the ledger, and attestations on the filesystem; it does not ship a
+   native object-store backend.
 5. Run `erasureproof ledger verify`, download sample evidence, and verify an
    existing attestation before deleting the old database.
 6. Keep the old database read-only for a short rollback window, then remove it.
 
 Install a persistent disk before collecting any evidence you intend to keep.
 Without one, every deploy can erase the artifacts while PostgreSQL still holds
-rows that point at them.
+rows that point at them. A Render persistent disk requires a paid instance plan.
 
 ## Option A: deploy the repository with a Blueprint
 

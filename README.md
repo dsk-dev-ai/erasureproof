@@ -277,8 +277,10 @@ deployment profile.
 > The hosted instance is an evaluation sandbox, not durable evidence storage.
 > Render's free web filesystem is ephemeral, so evidence, ledger, attestation,
 > and sandbox-connector files are lost on restart, deploy, or host migration.
-> The free PostgreSQL instance expires on **2026-11-27**. Use persistent disk or
-> object storage plus a managed, backed-up PostgreSQL database for production.
+> The free PostgreSQL instance expires on **2026-11-27**. Use a persistent disk
+> or shared volume plus a managed, backed-up PostgreSQL database for production.
+> ErasureProof's evidence store is filesystem-backed; an object-store backend is
+> not built in.
 
 ### Docker
 
