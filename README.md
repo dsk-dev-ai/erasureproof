@@ -555,7 +555,13 @@ tools are unavailable.
 
 ## Web console
 
-The console reads the same REST API as the CLI. It contains:
+The console reads the same REST API as the CLI.
+
+![ErasureProof overview dashboard](docs/assets/dashboard.png)
+
+<p align="center"><sub>Overview: proven findings, verification rate, attestation coverage, risk, evidence, and the live ledger.</sub></p>
+
+It contains:
 
 | View | Purpose |
 |---|---|

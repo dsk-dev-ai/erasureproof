@@ -17,7 +17,8 @@ needed to run ErasureProof as a shared service.
 - Console API key management page and one-time sandbox onboarding dialog.
 - Hosted console onboarding, developer quickstart, and live deployment links.
 - Python SDK, API reference, Render blueprint, and deployment guide.
-- Release banner, README quickstart, CI badge, and GitHub Sponsors support.
+- Release banner, README quickstart, release evidence, CI badge, and GitHub
+  Sponsors support.
 
 ### Fixed
 
