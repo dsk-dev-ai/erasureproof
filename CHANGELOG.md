@@ -2,6 +2,22 @@
 
 All notable changes are recorded here. ErasureProof follows semantic versioning.
 
+## Unreleased
+
+### Added
+
+- Free deployment profile using Render Free for the web service and Neon Free
+  PostgreSQL for durable relational data, with no credit card requirement.
+
+### Changed
+
+- The Render Blueprint now prompts for an external `ERASUREPROOF_DATABASE_URL`
+  instead of provisioning a temporary 30-day Render Postgres database.
+- PostgreSQL connections enable pre-ping so stale connections are replaced after
+  Neon scale-to-zero or a Render restart.
+- The hosted demo now uses Neon Free; the legacy Render Postgres was removed
+  after the data restore and live application were verified.
+
 ## 1.1.0 — 2026-10-28
 
 The first tagged stable release. It adds the hosted developer experience,

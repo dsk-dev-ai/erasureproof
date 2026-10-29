@@ -277,10 +277,11 @@ deployment profile.
 > The hosted instance is an evaluation sandbox, not durable evidence storage.
 > Render's free web filesystem is ephemeral, so evidence, ledger, attestation,
 > and sandbox-connector files are lost on restart, deploy, or host migration.
-> The free PostgreSQL instance expires on **2026-11-27**. Use a persistent disk
-> or shared volume plus a managed, backed-up PostgreSQL database for production.
-> ErasureProof's evidence store is filesystem-backed; an object-store backend is
-> not built in.
+> The hosted database is Neon Free in AWS US West (Oregon), with no 30-day
+> database expiry. Neon's free compute, storage, and egress limits apply. The
+> legacy Render Postgres was deleted after the migration was verified. For
+> durable evidence, attach a persistent disk or shared volume. ErasureProof's
+> evidence store is filesystem-backed; an object-store backend is not built in.
 
 ### Docker
 

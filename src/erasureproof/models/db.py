@@ -179,13 +179,18 @@ class AuditEventRow(Base):
 
 class Database:
     def __init__(self, url: str) -> None:
-        connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
-        if url.startswith("sqlite"):
+        is_sqlite = url.startswith("sqlite")
+        if is_sqlite:
             database = make_url(url).database
             if database and database != ":memory:":
                 Path(database).expanduser().resolve().parent.mkdir(parents=True, exist_ok=True)
         self.url = url
-        self.engine = create_engine(url, future=True, connect_args=connect_args)
+        if is_sqlite:
+            self.engine = create_engine(
+                url, future=True, connect_args={"check_same_thread": False}
+            )
+        else:
+            self.engine = create_engine(url, future=True, pool_pre_ping=True)
         self.SessionLocal = sessionmaker(bind=self.engine, expire_on_commit=False, future=True)
 
     def create_all(self) -> None:

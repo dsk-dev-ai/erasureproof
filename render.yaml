@@ -11,10 +11,10 @@ services:
         value: production
       - key: ERASUREPROOF_AUTH_MODE
         value: api_key
+      # Paste the Neon Free direct connection string. Render prompts for this
+      # value during Blueprint creation; it is never stored in the repository.
       - key: ERASUREPROOF_DATABASE_URL
-        fromDatabase:
-          name: erasureproof-db
-          property: connectionString
+        sync: false
       - key: ERASUREPROOF_DATA_DIR
         value: /data
       - key: ERASUREPROOF_POLICY_DIR
@@ -45,9 +45,3 @@ services:
         generateValue: true
       - key: ERASUREPROOF_API_KEYS
         sync: false
-
-databases:
-  - name: erasureproof-db
-    plan: free
-    region: oregon
-    postgresMajorVersion: "16"
