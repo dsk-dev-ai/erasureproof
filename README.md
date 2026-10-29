@@ -20,6 +20,7 @@
 <p align="center">
   <a href="https://erasureproof.onrender.com/console">Live console</a> ·
   <a href="https://erasureproof.onrender.com/docs">API documentation</a> ·
+  <a href="https://github.com/dsk-dev-ai/erasureproof/releases/tag/v1.1.0">Release notes</a> ·
   <a href="sdk/python">Python SDK</a> ·
   <a href="docs/API.md">API reference</a> ·
   <a href="docs/DEPLOY_RENDER.md">Deployment guide</a>
@@ -36,9 +37,13 @@ curl -s -X POST https://erasureproof.onrender.com/v1/onboarding/sandbox \
   -d '{"workspace_name":"Acme privacy"}'
 ```
 
-![ErasureProof hosted console](docs/assets/landing.png)
+<p align="center">
+  <a href="docs/assets/landing.png">
+    <img src="docs/assets/landing.png" alt="ErasureProof hosted console landing page" width="100%">
+  </a>
+</p>
 
-<p align="center"><sub>The hosted operations console: deletion audits, remediation plans, evidence, and ledger verification.</sub></p>
+<p align="center"><sub>The hosted operations console: deletion audits, remediation plans, evidence, and ledger verification. <a href="docs/assets/landing.png">Open full size</a>.</sub></p>
 
 ErasureProof is a deletion-audit and remediation engine. It reconstructs a
 person's identity from current and historical identifiers, finds their records
@@ -267,6 +272,13 @@ print(run["status"], run["attestation"]["signature"])
 See [`docs/API.md`](docs/API.md) for endpoint, role, approval, and error
 reference, and [`docs/DEPLOY_RENDER.md`](docs/DEPLOY_RENDER.md) for the Render
 deployment profile.
+
+> [!WARNING]
+> The hosted instance is an evaluation sandbox, not durable evidence storage.
+> Render's free web filesystem is ephemeral, so evidence, ledger, attestation,
+> and sandbox-connector files are lost on restart, deploy, or host migration.
+> The free PostgreSQL instance expires on **2026-11-27**. Use persistent disk or
+> object storage plus a managed, backed-up PostgreSQL database for production.
 
 ### Docker
 
@@ -557,9 +569,13 @@ tools are unavailable.
 
 The console reads the same REST API as the CLI.
 
-![ErasureProof overview dashboard](docs/assets/dashboard.png)
+<p align="center">
+  <a href="docs/assets/dashboard.png">
+    <img src="docs/assets/dashboard.png" alt="ErasureProof operations dashboard with audit metrics, findings, status mix, recent audits, control coverage, policies, and ledger state" width="100%">
+  </a>
+</p>
 
-<p align="center"><sub>Overview: proven findings, verification rate, attestation coverage, risk, evidence, and the live ledger.</sub></p>
+<p align="center"><sub>Overview: proven findings, verification rate, attestation coverage, risk, evidence, and the live ledger. <a href="docs/assets/dashboard.png">Open full size</a>.</sub></p>
 
 It contains:
 
@@ -628,7 +644,8 @@ and [`deploy/kubernetes`](deploy/kubernetes) for hardening notes.
 
 ## Release verification
 
-`v1.1.0` is the first tagged stable release. The release gate is:
+[`v1.1.0`](https://github.com/dsk-dev-ai/erasureproof/releases/tag/v1.1.0) is
+the first tagged stable release. The release gate is:
 
 ```bash
 make check                 # ruff, pytest, console typecheck and production build
@@ -638,9 +655,10 @@ curl -fsS localhost:18000/healthz
 ```
 
 CI runs lint, the full test suite, and the production console build on every
-push and pull request. The hosted deployment is smoke-tested for health,
-readiness, sandbox creation, audit execution, attestation verification, and
-ledger integrity. See [CHANGELOG.md](CHANGELOG.md) for the release history.
+push, pull request, and release tag. The hosted deployment is smoke-tested for
+health, readiness, sandbox creation, audit execution, attestation verification,
+and ledger integrity. See [CHANGELOG.md](CHANGELOG.md) for the release history
+and [docs/RELEASE.md](docs/RELEASE.md) for the release evidence.
 
 ## Sponsor ErasureProof
 

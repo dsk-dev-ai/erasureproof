@@ -3,6 +3,8 @@
 **Status: stable.** This is the first tagged public release of ErasureProof.
 
 - Release date: 2026-10-28
+- Published: 2026-10-29
+- Tag: [`v1.1.0`](https://github.com/dsk-dev-ai/erasureproof/releases/tag/v1.1.0) at `3866e38`
 - API, console, and SDK version: `1.1.0`
 - License: Apache-2.0
 
@@ -11,7 +13,7 @@
 | Check | Result |
 | --- | --- |
 | `make check` (ruff, pytest, SDK compile, console typecheck/build) | Pass: 80 tests passed, 1 skipped |
-| GitHub Actions `ci.yml` on `main` | Pass |
+| GitHub Actions `ci.yml` on `main` and tag `v1.1.0` | Pass |
 | Production Docker image build | Pass |
 | Docker smoke test | Health, readiness, docs, console, SPA deep link, and demo seed returned `200` |
 | Docker end-to-end audit | `COMPLETE`, 13 verification checks, 64-character signature |
@@ -21,6 +23,7 @@
 | Hosted API | `/healthz` returns `1.1.0` against PostgreSQL |
 | Hosted sandbox and audit | Sandbox created, audit completed, evidence attributed, attestation and ledger verified |
 | Hosted console | Landing, console, API-key management, and overview rendered with correct percentage metrics |
+| README screenshots | Refreshed from the hosted deployment at 1600 px; overview captured full-page with status mix, findings, policies, and ledger |
 
 ## Stable-release decision
 

@@ -13,12 +13,43 @@ sandbox onboarding.
 - The container filesystem stores evidence snapshots, the ledger, attestations,
   and sandbox source files. **Render free web services have no persistent disk**,
   so those artifacts disappear on deploy, restart, or host migration. Database
-  rows survive. Use a paid disk, Render disk, or an external object store for a
-  durable production deployment.
+  rows survive, but evidence references, ledger continuity, and attestation
+  verification can break. `ERASUREPROOF_DATA_DIR=/data` only helps when `/data`
+  is backed by a persistent disk.
 - The free PostgreSQL instance is temporary and expires after its 30-day window.
-  Upgrade or migrate before then.
+  This instance expires on **2026-11-27**. Upgrade or migrate before then.
 - Anonymous sandbox creation is limited to 3 per IP per day and 100 globally per
   day. Keys expire after 7 days.
+
+## What survives a free-tier restart
+
+| Artifact | Free-tier behavior |
+| --- | --- |
+| Tenants, requests, identities, API keys, approvals, audit events | Stored in PostgreSQL; survive web restarts until the database expires |
+| Evidence snapshots under `ERASUREPROOF_DATA_DIR/evidence` | Lost on deploy, restart, or host migration |
+| Ledger at `ERASUREPROOF_DATA_DIR/ledger.jsonl` | Lost; hash-chain continuity is broken |
+| Attestations under `ERASUREPROOF_DATA_DIR/attestations` | Lost; previously issued signatures can no longer be served |
+| Sandbox connector files | Lost with the container |
+
+A health check can still return `200` after an artifact reset because the API is
+running and PostgreSQL is connected. Treat missing evidence, a broken ledger, or
+failed attestation verification as data-integrity failures, not as a healthy
+free-tier quirk.
+
+## Migrate before 2026-11-27
+
+1. Create a paid or external PostgreSQL database with automated backups.
+2. Dump the Render database with `pg_dump` and restore it into the new database.
+3. Point `ERASUREPROOF_DATABASE_URL` at the new database and redeploy.
+4. Attach a persistent disk or shared volume to `/data`, or configure durable
+   storage for evidence, ledger, and attestations.
+5. Run `erasureproof ledger verify`, download sample evidence, and verify an
+   existing attestation before deleting the old database.
+6. Keep the old database read-only for a short rollback window, then remove it.
+
+Install a persistent disk before collecting any evidence you intend to keep.
+Without one, every deploy can erase the artifacts while PostgreSQL still holds
+rows that point at them.
 
 ## Option A: deploy the repository with a Blueprint
 
