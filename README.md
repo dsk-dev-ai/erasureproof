@@ -12,6 +12,8 @@
 <p align="center">
   <a href="https://erasureproof.onrender.com/healthz"><img src="https://img.shields.io/website?url=https%3A%2F%2Ferasureproof.onrender.com%2Fhealthz&label=live%20api&up_message=operational&down_message=offline&style=for-the-badge&color=14b8a6" alt="Live API status"></a>
   <a href="https://github.com/dsk-dev-ai/erasureproof/releases"><img src="https://img.shields.io/github/v/release/dsk-dev-ai/erasureproof?style=for-the-badge&color=14b8a6" alt="Latest release"></a>
+  <a href="https://pypi.org/project/erasureproof/"><img src="https://img.shields.io/pypi/v/erasureproof?style=for-the-badge&color=14b8a6" alt="PyPI"></a>
+  <a href="https://pypi.org/project/erasureproof-sdk/"><img src="https://img.shields.io/pypi/v/erasureproof-sdk?style=for-the-badge&color=14b8a6" alt="PyPI SDK"></a>
   <a href="https://github.com/dsk-dev-ai/erasureproof/actions/workflows/ci.yml"><img src="https://github.com/dsk-dev-ai/erasureproof/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/dsk-dev-ai/erasureproof/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-0ea5e9?style=for-the-badge" alt="Apache-2.0 license"></a>
   <a href="https://github.com/sponsors/dsk-dev-ai"><img src="https://img.shields.io/badge/sponsor-Support%20the%20project-db2777?style=for-the-badge" alt="Sponsor ErasureProof"></a>
@@ -20,7 +22,7 @@
 <p align="center">
   <a href="https://erasureproof.onrender.com/console">Live console</a> ·
   <a href="https://erasureproof.onrender.com/docs">API documentation</a> ·
-  <a href="https://github.com/dsk-dev-ai/erasureproof/releases/tag/v1.1.0">Release notes</a> ·
+  <a href="https://github.com/dsk-dev-ai/erasureproof/releases/tag/v1.1.1">Release notes</a> ·
   <a href="https://github.com/dsk-dev-ai/erasureproof/tree/main/sdk/python">Python SDK</a> ·
   <a href="https://github.com/dsk-dev-ai/erasureproof/blob/main/docs/API.md">API reference</a> ·
   <a href="https://github.com/dsk-dev-ai/erasureproof/blob/main/docs/DEPLOY_RENDER.md">Deployment guide</a>
@@ -155,7 +157,9 @@ pip install "erasureproof[s3]"
 pip install "erasureproof[temporal]"
 ```
 
-The standalone Python client is published separately:
+The core CLI is on [PyPI](https://pypi.org/project/erasureproof/). The
+standalone Python client is published separately as
+[`erasureproof-sdk`](https://pypi.org/project/erasureproof-sdk/):
 
 ```bash
 pip install erasureproof-sdk
@@ -236,7 +240,9 @@ JWKS URL; install the `oidc` extra.
 The console is a Vite + React application in `web/`. It ships a landing page, an
 operations dashboard, request audits, a remediation dependency graph, identity
 and connector views, evidence/ledger inspection, passive exposure scanning,
-policy configuration, and built-in product documentation.
+policy configuration, and built-in product documentation. The console is a
+private npm workspace (`"private": true`) and is not published to npm; it is
+built into the Python deployment image.
 
 Install the console dependencies once, then run both processes from the repository root:
 
@@ -672,21 +678,25 @@ and [`deploy/kubernetes`](deploy/kubernetes) for hardening notes.
 
 ## Release verification
 
-[`v1.1.0`](https://github.com/dsk-dev-ai/erasureproof/releases/tag/v1.1.0) is
-the first tagged stable release. The release gate is:
+[`v1.1.1`](https://github.com/dsk-dev-ai/erasureproof/releases/tag/v1.1.1) is
+the current stable release. It packages the Neon Free migration and the first
+PyPI publication of the core CLI/API and Python SDK. The release gate is:
 
 ```bash
 make check                 # ruff, pytest, console typecheck and production build
+make package-check         # both sdists/wheels plus twine metadata
 docker build -t erasureproof .
 docker run --rm -p 18000:8000 erasureproof
 curl -fsS localhost:18000/healthz
 ```
 
-CI runs lint, the full test suite, and the production console build on every
-push, pull request, and release tag. The hosted deployment is smoke-tested for
-health, readiness, sandbox creation, audit execution, attestation verification,
-and ledger integrity. See [CHANGELOG.md](CHANGELOG.md) for the release history
-and [docs/RELEASE.md](https://github.com/dsk-dev-ai/erasureproof/blob/main/docs/RELEASE.md) for the release evidence.
+CI runs lint, the full test suite, package metadata checks, and the production
+console build on every push, pull request, and release tag. The hosted
+deployment is smoke-tested for health, readiness, sandbox creation, audit
+execution, attestation verification, and ledger integrity. See
+[CHANGELOG.md](CHANGELOG.md) for the release history and
+[docs/RELEASE.md](https://github.com/dsk-dev-ai/erasureproof/blob/main/docs/RELEASE.md)
+for the release evidence.
 
 ## Sponsor ErasureProof
 

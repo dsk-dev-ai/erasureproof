@@ -4,22 +4,36 @@ All notable changes are recorded here. ErasureProof follows semantic versioning.
 
 ## Unreleased
 
+No unreleased changes.
+
+## 1.1.1 — 2026-10-30
+
+The hosted deployment now uses Neon Free PostgreSQL, and both the core package
+and Python SDK are published on PyPI with trusted publishing.
+
 ### Added
 
+- PyPI packages `erasureproof` and `erasureproof-sdk`, with package checks in CI,
+  a tag-triggered trusted-publishing workflow, and install instructions for the
+  core CLI and SDK.
 - Free deployment profile using Render Free for the web service and Neon Free
   PostgreSQL for durable relational data, with no credit card requirement.
-- PyPI packaging for `erasureproof` and `erasureproof-sdk`, with package checks
-  in CI, a tag-triggered trusted-publishing workflow, and install instructions
-  for the core CLI and SDK.
 
 ### Changed
 
 - The Render Blueprint now prompts for an external `ERASUREPROOF_DATABASE_URL`
   instead of provisioning a temporary 30-day Render Postgres database.
-- PostgreSQL connections enable pre-ping so stale connections are replaced after
-  Neon scale-to-zero or a Render restart.
 - The hosted demo now uses Neon Free; the legacy Render Postgres was removed
   after the data restore and live application were verified.
+- Core and SDK releases use separate GitHub environments (`pypi` and
+  `pypi-sdk`) for PyPI trusted publishing.
+- The console remains a private npm workspace and is not published to npm; it is
+  built into the Python deployment image.
+
+### Fixed
+
+- PostgreSQL connections enable pre-ping so stale connections are replaced after
+  Neon scale-to-zero or a Render restart.
 
 ## 1.1.0 — 2026-10-28
 

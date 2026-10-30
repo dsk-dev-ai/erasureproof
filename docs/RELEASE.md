@@ -1,37 +1,39 @@
-# Release v1.1.0
+# Release v1.1.1
 
-**Status: stable.** This is the first tagged public release of ErasureProof.
+**Status: stable.** This patch release moves the hosted deployment to Neon Free
+and publishes the core CLI/API and Python SDK to PyPI.
 
-- Release date: 2026-10-28
-- Published: 2026-10-29
-- Tag: [`v1.1.0`](https://github.com/dsk-dev-ai/erasureproof/releases/tag/v1.1.0) at `3866e38`
-- API, console, and SDK version: `1.1.0`
+- Release date: 2026-10-30
+- Published: 2026-10-30
+- Tag: [`v1.1.1`](https://github.com/dsk-dev-ai/erasureproof/releases/tag/v1.1.1)
+- API, console, and SDK version: `1.1.1`
 - License: Apache-2.0
+- PyPI: [`erasureproof`](https://pypi.org/project/erasureproof/1.1.1/) and
+  [`erasureproof-sdk`](https://pypi.org/project/erasureproof-sdk/1.1.1/)
+- Previous release: [`v1.1.0`](https://github.com/dsk-dev-ai/erasureproof/releases/tag/v1.1.0)
 
 ## Release gate
 
 | Check | Result |
 | --- | --- |
 | `make check` (ruff, pytest, SDK compile, console typecheck/build) | Pass: 80 tests passed, 1 skipped |
-| GitHub Actions `ci.yml` on `main` and tag `v1.1.0` | Pass |
-| Production Docker image build | Pass |
-| Docker smoke test | Health, readiness, docs, console, SPA deep link, and demo seed returned `200` |
-| Docker end-to-end audit | `COMPLETE`, 13 verification checks, 64-character signature |
-| Ledger and attestation verification | Ledger `OK` (34 entries); attestation `VALID` |
-| Production configuration guard | Startup rejected disabled authentication and the default attestation key |
-| Production auth smoke test | Unauthenticated request `401`; authenticated request `200`; sandbox `201` |
-| Hosted API | `/healthz` returns `1.1.0` against PostgreSQL |
-| Hosted sandbox and audit | Sandbox created, audit completed, evidence attributed, attestation and ledger verified |
-| Hosted console | Landing, console, API-key management, and overview rendered with correct percentage metrics |
-| README screenshots | Refreshed from the hosted deployment at 1600 px; overview captured full-page with status mix, findings, policies, and ledger |
+| `make package-check` (both sdists/wheels, twine metadata) | Pass |
+| GitHub Actions `ci.yml` on `main` | Pass |
+| PyPI trusted-publishing workflow | Pass: both packages published |
+| PyPI clean install | Core demo `COMPLETE` with 13/13 verification checks; SDK import passed |
+| Hosted API | `/version` returns `1.1.1`; `/readyz` reports `ok` against Neon PostgreSQL |
+| Neon migration | Row counts matched; legacy Render Postgres deleted 2026-10-29 |
 
-## Stable-release decision
+## Release decision
 
-The release is stable. No authentication, authorization, tenant-isolation,
-evidence-integrity, attestation, ledger, or data-loss defects were found during
-the release pass. One presentation defect was found during hosted smoke testing:
-the overview multiplied already-percentage API values by 100. It was fixed,
-rebuilt, redeployed, and rechecked before the tag was created.
+This is a patch release. No authentication, authorization, tenant-isolation,
+evidence-integrity, attestation, or ledger behavior changed. The functional fix
+enables PostgreSQL pre-ping so stale connections are replaced after Neon
+scale-to-zero or a Render restart. The release also adds reproducible packaging
+and trusted publishing for both PyPI projects.
+
+The console remains a private npm workspace and is not published to npm. It is
+built into the Python deployment image and served by FastAPI.
 
 ## Deployment caveats
 

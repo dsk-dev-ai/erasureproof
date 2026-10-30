@@ -844,7 +844,7 @@ curl "$BASE_URL/v1/requests/$REQUEST_ID/attestation" \
               <span className="flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-success" /> All systems operational
               </span>
-              <span className="font-mono">v1.1.0</span>
+              <span className="font-mono">v1.1.1</span>
             </div>
           </div>
         </div>
