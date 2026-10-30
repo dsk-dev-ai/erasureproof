@@ -40,8 +40,9 @@ These are operational limits, not release blockers:
 - The public hosted demo runs on Render's free tier. Evidence and ledger files
   live on an ephemeral filesystem, so use persistent disk or object storage for
   durable production evidence.
-- The free Render PostgreSQL instance has a finite lifetime and must be upgraded
-  or replaced before production use.
+- The hosted database runs on Neon Free. Neon compute, storage, and egress
+  limits apply; use a paid database for production retention, availability, or
+  capacity guarantees.
 - Self-service sandbox remediation approval is disabled to keep the public demo
   useful. Enable `ERASUREPROOF_REQUIRE_REMEDIATION_APPROVAL` for production
   destructive runs.

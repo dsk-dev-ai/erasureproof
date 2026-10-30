@@ -8,6 +8,9 @@ All notable changes are recorded here. ErasureProof follows semantic versioning.
 
 - Free deployment profile using Render Free for the web service and Neon Free
   PostgreSQL for durable relational data, with no credit card requirement.
+- PyPI packaging for `erasureproof` and `erasureproof-sdk`, with package checks
+  in CI, a tag-triggered trusted-publishing workflow, and install instructions
+  for the core CLI and SDK.
 
 ### Changed
 

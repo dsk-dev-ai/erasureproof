@@ -4,6 +4,12 @@ A dependency-free client for the ErasureProof deletion-audit API. It uses only
 the Python standard library and never logs or embeds the API key.
 
 ```bash
+pip install erasureproof-sdk
+```
+
+For development from the repository:
+
+```bash
 pip install -e sdk/python
 ```
 

@@ -7,7 +7,18 @@
 - `uv` is recommended, but `pip` works
 - Optional: `tesseract-ocr` and `poppler-utils` for scanned PDFs and image OCR
 
-## Backend setup
+## Install from PyPI
+
+~~~bash
+pip install erasureproof
+erasureproof demo
+~~~
+
+Install `erasureproof[postgres]`, `erasureproof[oidc]`, `erasureproof[s3]`, or
+`erasureproof[temporal]` for optional integrations. The dependency-free API
+client is published as `erasureproof-sdk`.
+
+## Backend setup from source
 
 ~~~bash
 uv venv .venv

@@ -1,7 +1,8 @@
 PYTHON ?= .venv/bin/python
 UV ?= uv
+UVX ?= uvx
 
-.PHONY: install demo test lint serve docker web-install web-dev web-build web-check check sdk-check
+.PHONY: install demo test lint serve docker web-install web-dev web-build web-check check sdk-check package-check
 
 install:
 	$(UV) venv .venv
@@ -31,6 +32,12 @@ web-check:
 
 sdk-check:
 	$(PYTHON) -m compileall -q sdk/python
+
+package-check:
+	rm -rf dist
+	$(UV) build --out-dir dist .
+	$(UV) build --out-dir dist sdk/python
+	$(UVX) twine check dist/*
 
 check: lint test sdk-check web-check
 

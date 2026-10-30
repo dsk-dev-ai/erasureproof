@@ -11,6 +11,25 @@ requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Darshan Kachare" }]
 dependencies = []
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.urls]
+Homepage = "https://github.com/dsk-dev-ai/erasureproof/tree/main/sdk/python"
+Documentation = "https://github.com/dsk-dev-ai/erasureproof#python-sdk"
+Repository = "https://github.com/dsk-dev-ai/erasureproof"
+Changelog = "https://github.com/dsk-dev-ai/erasureproof/blob/main/CHANGELOG.md"
+Issues = "https://github.com/dsk-dev-ai/erasureproof/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["erasureproof_sdk"]

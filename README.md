@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/banner.svg" alt="ErasureProof — find every copy, prove every deletion" width="100%">
+  <img src="https://raw.githubusercontent.com/dsk-dev-ai/erasureproof/main/docs/assets/banner.svg" alt="ErasureProof — find every copy, prove every deletion" width="100%">
 </p>
 
 <h1 align="center">ErasureProof</h1>
@@ -13,7 +13,7 @@
   <a href="https://erasureproof.onrender.com/healthz"><img src="https://img.shields.io/website?url=https%3A%2F%2Ferasureproof.onrender.com%2Fhealthz&label=live%20api&up_message=operational&down_message=offline&style=for-the-badge&color=14b8a6" alt="Live API status"></a>
   <a href="https://github.com/dsk-dev-ai/erasureproof/releases"><img src="https://img.shields.io/github/v/release/dsk-dev-ai/erasureproof?style=for-the-badge&color=14b8a6" alt="Latest release"></a>
   <a href="https://github.com/dsk-dev-ai/erasureproof/actions/workflows/ci.yml"><img src="https://github.com/dsk-dev-ai/erasureproof/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-0ea5e9?style=for-the-badge" alt="Apache-2.0 license"></a>
+  <a href="https://github.com/dsk-dev-ai/erasureproof/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-0ea5e9?style=for-the-badge" alt="Apache-2.0 license"></a>
   <a href="https://github.com/sponsors/dsk-dev-ai"><img src="https://img.shields.io/badge/sponsor-Support%20the%20project-db2777?style=for-the-badge" alt="Sponsor ErasureProof"></a>
 </p>
 
@@ -21,9 +21,9 @@
   <a href="https://erasureproof.onrender.com/console">Live console</a> ·
   <a href="https://erasureproof.onrender.com/docs">API documentation</a> ·
   <a href="https://github.com/dsk-dev-ai/erasureproof/releases/tag/v1.1.0">Release notes</a> ·
-  <a href="sdk/python">Python SDK</a> ·
-  <a href="docs/API.md">API reference</a> ·
-  <a href="docs/DEPLOY_RENDER.md">Deployment guide</a>
+  <a href="https://github.com/dsk-dev-ai/erasureproof/tree/main/sdk/python">Python SDK</a> ·
+  <a href="https://github.com/dsk-dev-ai/erasureproof/blob/main/docs/API.md">API reference</a> ·
+  <a href="https://github.com/dsk-dev-ai/erasureproof/blob/main/docs/DEPLOY_RENDER.md">Deployment guide</a>
 </p>
 
 > [!TIP]
@@ -38,12 +38,12 @@ curl -s -X POST https://erasureproof.onrender.com/v1/onboarding/sandbox \
 ```
 
 <p align="center">
-  <a href="docs/assets/landing.png">
-    <img src="docs/assets/landing.png" alt="ErasureProof hosted console landing page" width="100%">
+  <a href="https://github.com/dsk-dev-ai/erasureproof/blob/main/docs/assets/landing.png">
+    <img src="https://raw.githubusercontent.com/dsk-dev-ai/erasureproof/main/docs/assets/landing.png" alt="ErasureProof hosted console landing page" width="100%">
   </a>
 </p>
 
-<p align="center"><sub>The hosted operations console: deletion audits, remediation plans, evidence, and ledger verification. <a href="docs/assets/landing.png">Open full size</a>.</sub></p>
+<p align="center"><sub>The hosted operations console: deletion audits, remediation plans, evidence, and ledger verification. <a href="https://github.com/dsk-dev-ai/erasureproof/blob/main/docs/assets/landing.png">Open full size</a>.</sub></p>
 
 ErasureProof is a deletion-audit and remediation engine. It reconstructs a
 person's identity from current and historical identifiers, finds their records
@@ -140,9 +140,31 @@ Request ──► Intent classifier ──► Identity graph (current + historic
 - **A step dependency graph** that validates ordering and renders as Mermaid,
   Graphviz DOT, JSON, or an interactive console view.
 
+## Install
+
+```bash
+pip install erasureproof
+```
+
+Install database, OIDC, object-store, or workflow extras as needed:
+
+```bash
+pip install "erasureproof[postgres]"
+pip install "erasureproof[oidc]"
+pip install "erasureproof[s3]"
+pip install "erasureproof[temporal]"
+```
+
+The standalone Python client is published separately:
+
+```bash
+pip install erasureproof-sdk
+```
+
 ## Quickstart
 
-Requirements: Python 3.10+ (3.11/3.12 recommended) and `uv` or `pip`.
+For local development from source, use Python 3.10+ (3.11/3.12 recommended)
+and `uv` or `pip`:
 
 ```bash
 # with uv (recommended)
@@ -154,6 +176,9 @@ python3 -m venv .venv
 . .venv/bin/activate
 pip install -e ".[dev]"
 ```
+
+Once installed from PyPI, run the demo directly with `erasureproof demo` or
+`uvx erasureproof demo`.
 
 ### Run the end-to-end demo
 
@@ -269,8 +294,8 @@ run = client.run_request(sandbox["sample_request_id"], remediate=False)
 print(run["status"], run["attestation"]["signature"])
 ```
 
-See [`docs/API.md`](docs/API.md) for endpoint, role, approval, and error
-reference, and [`docs/DEPLOY_RENDER.md`](docs/DEPLOY_RENDER.md) for the Render
+See [`docs/API.md`](https://github.com/dsk-dev-ai/erasureproof/blob/main/docs/API.md) for endpoint, role, approval, and error
+reference, and [`docs/DEPLOY_RENDER.md`](https://github.com/dsk-dev-ai/erasureproof/blob/main/docs/DEPLOY_RENDER.md) for the Render
 deployment profile.
 
 > [!WARNING]
@@ -359,7 +384,7 @@ Built-in connectors:
 | `postgres` | Postgres-aware SQL connector |
 | `local` | Local object-store directory (exports, attachments, logs) |
 | `filesystem` / `workspace` | Directory tree with PDF/OCR/archive/SQLite extraction and redaction |
-| `s3` | S3-compatible bucket (`pip install -e ".[s3]"`) |
+| `s3` | S3-compatible bucket (`pip install "erasureproof[s3]"`) |
 | `control` | JSON control plane for sync jobs and backup restore points |
 
 Connector configs are stored per tenant in the API and are validated before use.
@@ -573,12 +598,12 @@ tools are unavailable.
 The console reads the same REST API as the CLI.
 
 <p align="center">
-  <a href="docs/assets/dashboard.png">
-    <img src="docs/assets/dashboard.png" alt="ErasureProof operations dashboard with audit metrics, findings, status mix, recent audits, control coverage, policies, and ledger state" width="100%">
+  <a href="https://github.com/dsk-dev-ai/erasureproof/blob/main/docs/assets/dashboard.png">
+    <img src="https://raw.githubusercontent.com/dsk-dev-ai/erasureproof/main/docs/assets/dashboard.png" alt="ErasureProof operations dashboard with audit metrics, findings, status mix, recent audits, control coverage, policies, and ledger state" width="100%">
   </a>
 </p>
 
-<p align="center"><sub>Overview: proven findings, verification rate, attestation coverage, risk, evidence, and the live ledger. <a href="docs/assets/dashboard.png">Open full size</a>.</sub></p>
+<p align="center"><sub>Overview: proven findings, verification rate, attestation coverage, risk, evidence, and the live ledger. <a href="https://github.com/dsk-dev-ai/erasureproof/blob/main/docs/assets/dashboard.png">Open full size</a>.</sub></p>
 
 It contains:
 
@@ -661,7 +686,7 @@ CI runs lint, the full test suite, and the production console build on every
 push, pull request, and release tag. The hosted deployment is smoke-tested for
 health, readiness, sandbox creation, audit execution, attestation verification,
 and ledger integrity. See [CHANGELOG.md](CHANGELOG.md) for the release history
-and [docs/RELEASE.md](docs/RELEASE.md) for the release evidence.
+and [docs/RELEASE.md](https://github.com/dsk-dev-ai/erasureproof/blob/main/docs/RELEASE.md) for the release evidence.
 
 ## Sponsor ErasureProof
 
@@ -675,4 +700,4 @@ connector coverage, regression tests, and hosted demo infrastructure.
 
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE).
+Apache-2.0. See [LICENSE](https://github.com/dsk-dev-ai/erasureproof/blob/main/LICENSE).
