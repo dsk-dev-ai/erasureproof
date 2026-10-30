@@ -62,7 +62,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment: pypi
+    environment: ${{ matrix.environment }}
     permissions:
       contents: read
       id-token: write
@@ -72,7 +72,9 @@ jobs:
       matrix:
         include:
           - package: erasureproof
+            environment: pypi
           - package: erasureproof-sdk
+            environment: pypi-sdk
     steps:
       - uses: actions/download-artifact@v4
         with:
