@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/dsk-dev-ai/erasureproof/main/docs/assets/banner.svg" alt="ErasureProof — find every copy, prove every deletion" width="100%">
+  <img src="https://raw.githubusercontent.com/dsk-dev-ai/erasureproof/main/docs/assets/banner.svg?v=1.1.2" alt="ErasureProof — find every copy, prove every deletion" width="100%">
 </p>
 
 <h1 align="center">ErasureProof</h1>
@@ -11,9 +11,9 @@
 
 <p align="center">
   <a href="https://erasureproof.onrender.com/healthz"><img src="https://img.shields.io/website?url=https%3A%2F%2Ferasureproof.onrender.com%2Fhealthz&label=live%20api&up_message=operational&down_message=offline&style=for-the-badge&color=14b8a6" alt="Live API status"></a>
-  <a href="https://github.com/dsk-dev-ai/erasureproof/releases"><img src="https://img.shields.io/github/v/release/dsk-dev-ai/erasureproof?style=for-the-badge&color=14b8a6" alt="Latest release"></a>
-  <a href="https://pypi.org/project/erasureproof/"><img src="https://img.shields.io/pypi/v/erasureproof?style=for-the-badge&color=14b8a6" alt="PyPI"></a>
-  <a href="https://pypi.org/project/erasureproof-sdk/"><img src="https://img.shields.io/pypi/v/erasureproof-sdk?style=for-the-badge&color=14b8a6" alt="PyPI SDK"></a>
+  <a href="https://github.com/dsk-dev-ai/erasureproof/releases"><img src="https://img.shields.io/github/v/release/dsk-dev-ai/erasureproof?style=for-the-badge&color=14b8a6&cacheSeconds=300" alt="Latest release"></a>
+  <a href="https://pypi.org/project/erasureproof/"><img src="https://img.shields.io/pypi/v/erasureproof?style=for-the-badge&color=14b8a6&cacheSeconds=300" alt="PyPI"></a>
+  <a href="https://pypi.org/project/erasureproof-sdk/"><img src="https://img.shields.io/pypi/v/erasureproof-sdk?style=for-the-badge&color=14b8a6&cacheSeconds=300" alt="PyPI SDK"></a>
   <a href="https://github.com/dsk-dev-ai/erasureproof/actions/workflows/ci.yml"><img src="https://github.com/dsk-dev-ai/erasureproof/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/dsk-dev-ai/erasureproof/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-0ea5e9?style=for-the-badge" alt="Apache-2.0 license"></a>
   <a href="https://github.com/sponsors/dsk-dev-ai"><img src="https://img.shields.io/badge/sponsor-Support%20the%20project-db2777?style=for-the-badge" alt="Sponsor ErasureProof"></a>
