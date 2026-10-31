@@ -156,7 +156,9 @@ def test_evidence_endpoints() -> None:
     content = client.get(f"/v1/evidence/{record.evidence_id}/content")
     assert content.status_code == 200
     assert b"alice@example.com" in content.content
-    assert content.headers["content-disposition"].startswith("inline")
+    assert content.headers["content-disposition"].startswith("attachment")
+    assert content.headers["content-type"] == "application/octet-stream"
+    assert content.headers["content-security-policy"] == "sandbox"
 
     verified = client.post(f"/v1/evidence/{record.evidence_id}/verify").json()
     assert verified["valid"] is True

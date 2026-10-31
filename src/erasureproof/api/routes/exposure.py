@@ -44,6 +44,7 @@ def scan_exposure(
             target,
             collectors=payload.collectors,
             authorized=payload.authorized,
+            tenant_id=tenant_id,
         )
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc

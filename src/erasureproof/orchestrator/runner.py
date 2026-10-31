@@ -225,10 +225,29 @@ class ErasureOrchestrator:
         )
 
         passed = verification_passed(verifications)
+        new_resources: list[str] = []
         if remediation_applied:
-            status = "COMPLETE" if passed else "INCOMPLETE"
+            new_resources = sorted(set(current.refs) - set(initial.refs))
+            new_resources.extend(sorted(set(current.flow_refs) - set(initial.flow_refs)))
+            new_resources.extend(sorted(set(current.backup_refs) - set(initial.backup_refs)))
+
+        errors = initial.errors + current.errors
+        if new_resources:
+            errors.append(
+                "post-remediation discovery found resources that were not in the plan: "
+                + ", ".join(new_resources[:10])
+            )
+
+        if errors:
+            status = "INCOMPLETE"
+        elif plan.status == "NOT_APPLICABLE":
+            status = "NOT_APPLICABLE"
+        elif remediation_applied:
+            status = "COMPLETE" if passed and not new_resources else "INCOMPLETE"
+        elif plan.status == "COMPLETE":
+            status = "COMPLETE" if (not verifications or passed) else "INCOMPLETE"
         else:
-            status = plan.status
+            status = "INCOMPLETE"
 
         self.ledger.append(
             "verification.completed",
@@ -238,6 +257,7 @@ class ErasureOrchestrator:
                 "passed": passed,
                 "checks": len(verifications),
                 "failed": sum(1 for result in verifications if not result.passed),
+                "new_resources": len(new_resources),
             },
         )
 
@@ -278,7 +298,7 @@ class ErasureOrchestrator:
             ledger_head=self.ledger.head(),
             remediation_applied=remediation_applied,
             graph=graph,
-            errors=initial.errors + current.errors,
+            errors=errors,
         )
 
     def _remediate(

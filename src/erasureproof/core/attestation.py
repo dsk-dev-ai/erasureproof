@@ -10,6 +10,7 @@ from __future__ import annotations
 import hmac
 import json
 import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -20,6 +21,7 @@ from ..config import get_settings
 from ..models.domain import Attestation, Plan, VerificationResult
 
 ATTESTATION_VERSION = "1"
+_SAFE_REQUEST_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 
 
 def sign_payload(payload: dict[str, Any], key: str) -> str:
@@ -103,7 +105,11 @@ class AttestationService:
         )
         signature = sign_payload(payload, self.key)
 
-        destination = self.directory / f"{request_id}.attestation.json"
+        if not _SAFE_REQUEST_ID.fullmatch(request_id):
+            raise ValueError("request_id contains unsafe path characters")
+        destination = (self.directory / f"{request_id}.attestation.json").resolve()
+        if destination.parent != self.directory.resolve():
+            raise ValueError("attestation path escapes the configured directory")
         document = {"payload": payload, "signature": signature}
         with NamedTemporaryFile(
             "w",

@@ -30,6 +30,7 @@ FORMAT = "erasureproof-backup"
 FORMAT_VERSION = 1
 MANIFEST = "manifest.json"
 CHUNK = 1024 * 1024
+MAX_MANIFEST_BYTES = 16 * 1024 * 1024
 KINDS = {"data", "evidence", "attestations", "ledger", "database"}
 
 
@@ -80,12 +81,20 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _sha256_stream(handle) -> tuple[str, int]:
+def _sha256_stream(handle, limit: int | None = None) -> tuple[str, int]:
     digest = hashlib.sha256()
     size = 0
-    while chunk := handle.read(CHUNK):
+    while True:
+        if limit is None:
+            chunk = handle.read(CHUNK)
+        else:
+            chunk = handle.read(min(CHUNK, limit + 1 - size))
+        if not chunk:
+            break
         digest.update(chunk)
         size += len(chunk)
+        if limit is not None and size > limit:
+            break
     return digest.hexdigest(), size
 
 
@@ -302,10 +311,19 @@ def verify_backup(path: str | Path, *, settings: Settings | None = None) -> Back
             if MANIFEST not in names:
                 errors.append("manifest.json is missing")
                 return BackupVerification(False, errors, None, path)
+            info = archive.getinfo(MANIFEST)
+            if info.file_size > MAX_MANIFEST_BYTES:
+                errors.append("manifest.json is too large")
+                return BackupVerification(False, errors, None, path)
             try:
-                manifest = json.loads(archive.read(MANIFEST))
+                with archive.open(MANIFEST) as handle:
+                    raw = handle.read(MAX_MANIFEST_BYTES + 1)
+                manifest = json.loads(raw)
             except (json.JSONDecodeError, UnicodeDecodeError):
                 errors.append("manifest.json is not valid JSON")
+                return BackupVerification(False, errors, None, path)
+            if len(raw) > MAX_MANIFEST_BYTES:
+                errors.append("manifest.json is too large")
                 return BackupVerification(False, errors, None, path)
             if not isinstance(manifest, dict):
                 errors.append("manifest.json must be an object")
@@ -316,12 +334,18 @@ def verify_backup(path: str | Path, *, settings: Settings | None = None) -> Back
                 errors.append("unsupported backup format version")
             signature = manifest.get("signature")
             body = {key: value for key, value in manifest.items() if key != "signature"}
+            signature_valid = True
             if not isinstance(signature, dict) or not signature.get("value"):
                 errors.append("manifest signature is missing")
+                signature_valid = False
             elif signature.get("algorithm") != "HMAC-SHA256":
                 errors.append("manifest signature algorithm is unsupported")
+                signature_valid = False
             elif not verify_signature(body, str(signature["value"]), settings.attestation_key):
                 errors.append("manifest signature is invalid")
+                signature_valid = False
+            if not signature_valid:
+                return BackupVerification(False, errors, manifest, path)
             entries = manifest.get("files")
             if not isinstance(entries, list):
                 errors.append("manifest files must be a list")
@@ -351,15 +375,19 @@ def verify_backup(path: str | Path, *, settings: Settings | None = None) -> Back
             for arcname, entry in expected.items():
                 if arcname not in names:
                     continue
+                expected_size = entry.get("size")
+                if not isinstance(expected_size, int) or expected_size < 0:
+                    errors.append(f"invalid size for {arcname}")
+                    continue
                 try:
                     with archive.open(arcname) as handle:
-                        digest, size = _sha256_stream(handle)
+                        digest, size = _sha256_stream(handle, expected_size)
                 except (OSError, zipfile.BadZipFile) as exc:
                     errors.append(f"cannot read {arcname}: {exc}")
                     continue
-                if size != entry.get("size"):
+                if size != expected_size:
                     errors.append(f"size mismatch for {arcname}")
-                if digest != entry.get("sha256"):
+                if size <= expected_size and digest != entry.get("sha256"):
                     errors.append(f"sha256 mismatch for {arcname}")
     except zipfile.BadZipFile:
         errors.append("backup is not a valid zip archive")

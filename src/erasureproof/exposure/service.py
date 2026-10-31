@@ -53,6 +53,7 @@ class ExposureService:
         collectors: Iterable[str] | None = None,
         authorized: bool = False,
         metadata: dict[str, Any] | None = None,
+        tenant_id: str | None = None,
     ) -> ExposureReport:
         selected = self._selected(collectors)
         network_selected = bool(selected)
@@ -78,7 +79,12 @@ class ExposureService:
             if collector_class is None:
                 report.errors.append(f"{name}: unknown collector")
                 continue
-            collector: BaseCollector = collector_class(self.settings, self.store, self.http)
+            collector: BaseCollector = collector_class(
+                self.settings,
+                self.store,
+                self.http,
+                tenant_id=tenant_id,
+            )
             available, reason = collector.available(target)
             if not available:
                 report.errors.append(f"{name}: {reason}")
@@ -113,6 +119,7 @@ class ExposureService:
                 source="exposure:report",
                 captured_at=report.generated_at,
                 content_type="application/json",
+                tenant_id=tenant_id,
             )
             report.report_evidence_id = record.evidence_id
 

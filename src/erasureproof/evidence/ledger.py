@@ -6,6 +6,7 @@ is detectable. Entries are JSONL, one write per line, fsynced for durability.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import threading
@@ -16,8 +17,44 @@ from typing import Any
 
 from ..canonical import canonical_json, sha256_hex
 
+try:  # POSIX
+    import fcntl as _fcntl
+except ImportError:  # pragma: no cover - Windows
+    _fcntl = None
+
+try:  # Windows
+    import msvcrt as _msvcrt
+except ImportError:  # pragma: no cover - POSIX
+    _msvcrt = None
+
 GENESIS = "0" * 64
 _APPEND_LOCK = threading.Lock()
+
+
+@contextlib.contextmanager
+def _interprocess_lock(path: Path):
+    """Serialise ledger appends across processes sharing the same file."""
+
+    lock_path = path.with_name(path.name + ".lock")
+    handle = lock_path.open("a+b")
+    try:
+        if _fcntl is not None:
+            _fcntl.flock(handle.fileno(), _fcntl.LOCK_EX)
+        elif _msvcrt is not None:  # pragma: no cover - Windows
+            handle.seek(0, os.SEEK_END)
+            if handle.tell() == 0:
+                handle.write(b"\0")
+                handle.flush()
+            handle.seek(0)
+            _msvcrt.locking(handle.fileno(), _msvcrt.LK_LOCK, 1)
+        yield
+    finally:
+        if _fcntl is not None:
+            _fcntl.flock(handle.fileno(), _fcntl.LOCK_UN)
+        elif _msvcrt is not None:  # pragma: no cover - Windows
+            handle.seek(0)
+            _msvcrt.locking(handle.fileno(), _msvcrt.LK_UNLCK, 1)
+        handle.close()
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,7 +112,7 @@ class EvidenceLedger:
         if not self.path.exists():
             self.path.touch()
 
-    def read(self) -> list[LedgerEntry]:
+    def _read_entries(self) -> list[LedgerEntry]:
         entries: list[LedgerEntry] = []
         with self.path.open("r", encoding="utf-8") as handle:
             for line in handle:
@@ -84,6 +121,10 @@ class EvidenceLedger:
                     continue
                 entries.append(LedgerEntry.from_dict(json.loads(line)))
         return entries
+
+    def read(self) -> list[LedgerEntry]:
+        with _APPEND_LOCK, _interprocess_lock(self.path):
+            return self._read_entries()
 
     def head(self) -> str:
         entries = self.read()
@@ -96,8 +137,8 @@ class EvidenceLedger:
         payload: dict[str, Any] | None = None,
         timestamp: datetime | None = None,
     ) -> LedgerEntry:
-        with _APPEND_LOCK:
-            entries = self.read()
+        with _APPEND_LOCK, _interprocess_lock(self.path):
+            entries = self._read_entries()
             prev_hash = entries[-1].hash if entries else GENESIS
             timestamp = timestamp or datetime.now(timezone.utc)
             entry = LedgerEntry(

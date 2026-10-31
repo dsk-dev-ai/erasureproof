@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,6 +17,9 @@ from tempfile import NamedTemporaryFile
 from typing import Any
 
 from ..canonical import canonical_json, sha256_hex
+
+_EVIDENCE_ID_RE = re.compile(r"^ev_[A-Za-z0-9_-]+$")
+_DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,6 +32,7 @@ class EvidenceRecord:
     size: int
     content_type: str = "application/octet-stream"
     request_id: str | None = None
+    tenant_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -39,6 +44,7 @@ class EvidenceRecord:
             "size": self.size,
             "content_type": self.content_type,
             "request_id": self.request_id,
+            "tenant_id": self.tenant_id,
         }
 
 
@@ -65,13 +71,26 @@ class EvidenceStore:
         captured_at: datetime | None = None,
         request_id: str | None = None,
         content_type: str | None = None,
+        tenant_id: str | None = None,
     ) -> EvidenceRecord:
         raw, detected_type = self._as_bytes(content)
         digest = sha256_hex(raw)
-        evidence_id = f"ev_{digest[:24]}"
         captured_at = captured_at or datetime.now(timezone.utc)
         if captured_at.tzinfo is None:
             captured_at = captured_at.replace(tzinfo=timezone.utc)
+        content_type = content_type or detected_type
+        evidence_id = "ev_" + sha256_hex(
+            canonical_json(
+                {
+                    "sha256": digest,
+                    "source": source,
+                    "captured_at": captured_at.isoformat(),
+                    "request_id": request_id,
+                    "content_type": content_type,
+                    "tenant_id": tenant_id,
+                }
+            )
+        )[:24]
 
         object_dir = self.objects / digest[:2]
         object_dir.mkdir(parents=True, exist_ok=True)
@@ -90,8 +109,9 @@ class EvidenceStore:
             "source": source,
             "captured_at": captured_at.isoformat(),
             "size": len(raw),
-            "content_type": content_type or detected_type,
+            "content_type": content_type,
             "request_id": request_id,
+            "tenant_id": tenant_id,
         }
         meta_path.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
 
@@ -104,9 +124,12 @@ class EvidenceStore:
             size=len(raw),
             content_type=metadata["content_type"],
             request_id=request_id,
+            tenant_id=tenant_id,
         )
 
     def metadata(self, evidence_id: str) -> dict[str, Any]:
+        if not _EVIDENCE_ID_RE.fullmatch(evidence_id):
+            raise FileNotFoundError(f"Unknown evidence: {evidence_id}")
         meta_path = self.meta / f"{evidence_id}.json"
         if not meta_path.exists():
             raise FileNotFoundError(f"Unknown evidence: {evidence_id}")
@@ -115,14 +138,25 @@ class EvidenceStore:
     def object_path(self, metadata: dict[str, Any]) -> Path:
         """Resolve an object path across copied or relocated data directories."""
 
-        digest = str(metadata["sha256"])
+        digest = str(metadata.get("sha256", ""))
+        if not _DIGEST_RE.fullmatch(digest):
+            raise FileNotFoundError("evidence metadata has an invalid digest")
         candidate = self.objects / digest[:2] / digest
         if candidate.exists():
             return candidate
+
         stored = Path(str(metadata.get("path", "")))
         if stored.is_absolute():
-            return stored
-        return self.root / stored
+            raise FileNotFoundError("evidence path must be relative to the store")
+
+        candidate = (self.root / stored).resolve()
+        try:
+            candidate.relative_to(self.root.resolve())
+        except ValueError as exc:
+            raise FileNotFoundError("evidence path escapes the evidence store") from exc
+        if candidate.name != digest or candidate.parent.name != digest[:2]:
+            raise FileNotFoundError("evidence path does not match its digest")
+        return candidate
 
     def get(self, evidence_id: str) -> bytes:
         metadata = self.metadata(evidence_id)

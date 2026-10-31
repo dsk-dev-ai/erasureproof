@@ -83,6 +83,7 @@ def _store(
     content: Any,
     source: str,
     content_type: str | None = None,
+    tenant_id: str | None = None,
 ) -> str:
     if store is None:
         return ""
@@ -92,6 +93,7 @@ def _store(
             source=source,
             captured_at=datetime.now(timezone.utc),
             content_type=content_type,
+            tenant_id=tenant_id,
         ).evidence_id
     except Exception:
         return ""
@@ -102,11 +104,33 @@ class BaseCollector:
     kind = "search"
     network = True
 
-    def __init__(self, settings: Any, store: Any, http: HttpClient) -> None:
+    def __init__(
+        self,
+        settings: Any,
+        store: Any,
+        http: HttpClient,
+        tenant_id: str | None = None,
+    ) -> None:
         self.settings = settings
         self.store = store
         self.http = http
+        self.tenant_id = tenant_id
         self.errors: list[str] = []
+
+    def _store(
+        self,
+        store: Any,
+        content: Any,
+        source: str,
+        content_type: str | None = None,
+    ) -> str:
+        return _store(
+            store,
+            content,
+            source,
+            content_type,
+            tenant_id=self.tenant_id,
+        )
 
     def available(self, target: ExposureTarget) -> tuple[bool, str]:
         return True, ""
@@ -173,7 +197,7 @@ class DirectUrlCollector(BaseCollector):
             matched = _match(target, haystack)
             if not matched:
                 continue
-            evidence_id = _store(
+            evidence_id = self._store(
                 self.store,
                 response.body,
                 source=f"exposure:direct:{response.url}",
@@ -238,7 +262,7 @@ class WaybackCollector(BaseCollector):
                 matched = _match(target, f"{archived_url}\n{text}")
                 if not matched:
                     continue
-                evidence_id = _store(
+                evidence_id = self._store(
                     self.store,
                     page.body,
                     source=f"exposure:wayback:{snapshot}",
@@ -311,7 +335,7 @@ class SearchApiCollector(BaseCollector):
                 payload = json.loads(response.text)
             except json.JSONDecodeError:
                 continue
-            evidence_id = _store(
+            evidence_id = self._store(
                 self.store,
                 response.body,
                 source=f"exposure:{name}:{query}",
@@ -391,7 +415,7 @@ class HibpCollector(BaseCollector):
         if response.status != 200:
             self.errors.append(f"HIBP lookup failed with HTTP {response.status}")
             return []
-        evidence_id = _store(
+        evidence_id = self._store(
             self.store,
             response.body,
             source=f"exposure:hibp:{email}",
@@ -454,7 +478,7 @@ class GithubCollector(BaseCollector):
             )
             if response.status != 200:
                 continue
-            evidence_id = _store(
+            evidence_id = self._store(
                 self.store,
                 response.body,
                 source=f"exposure:github:code:{email}",
@@ -489,7 +513,7 @@ class GithubCollector(BaseCollector):
             )
             if response.status != 200:
                 continue
-            evidence_id = _store(
+            evidence_id = self._store(
                 self.store,
                 response.body,
                 source=f"exposure:github:profile:{handle}",
@@ -534,7 +558,7 @@ class GravatarCollector(BaseCollector):
                 continue
             if response.status != 200:
                 continue
-            evidence_id = _store(
+            evidence_id = self._store(
                 self.store,
                 response.body,
                 source=f"exposure:gravatar:{digest}",
@@ -586,7 +610,7 @@ class UsernameCollector(BaseCollector):
                     continue
                 if response.status != 200:
                     continue
-                evidence_id = _store(
+                evidence_id = self._store(
                     self.store,
                     response.body,
                     source=f"exposure:{self.name}:{url}",

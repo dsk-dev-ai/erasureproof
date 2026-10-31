@@ -14,6 +14,7 @@ from erasureproof.models.domain import (
     Category,
     Identifier,
     IdentifierType,
+    ResourceRef,
     State,
     SubjectGraph,
     hash_email,
@@ -165,3 +166,29 @@ def test_local_object_connector_filters_time_and_remediates(tmp_path) -> None:
     assert connector.remediate(log, Action.DELETE).success
     assert connector.verify(log, State.ABSENT).passed
     assert not (root / "logs" / "app.log").exists()
+
+
+def test_local_object_connector_blocks_path_escape_and_symlinks(tmp_path) -> None:
+    root = tmp_path / "bucket"
+    root.mkdir()
+    outside = tmp_path / "outside.txt"
+    outside.write_text("alice@example.com", encoding="utf-8")
+    (root / "link.txt").symlink_to(outside)
+
+    connector = LocalObjectConnector(
+        connector_id="con_obj",
+        system_id="object_store",
+        config={"backend": "local", "root": str(root)},
+    )
+
+    assert connector.discover(_subject(), AUDIT_AT) == []
+
+    bad = ResourceRef(
+        "object_store",
+        "../outside.txt",
+        Category.EXPORT,
+        payload={"path": "../outside.txt"},
+    )
+    result = connector.remediate(bad, Action.DELETE)
+    assert result.success is False
+    assert outside.exists()

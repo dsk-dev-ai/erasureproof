@@ -188,9 +188,8 @@ def list_evidence(
     principal: Principal = Depends(require_viewer),
 ) -> dict:
     store = get_store()
-    allowed = _tenant_request_ids(
-        database, None if principal.tenant_wildcard else principal.tenant_id
-    )
+    tenant_id = None if principal.tenant_wildcard else principal.tenant_id
+    allowed = _tenant_request_ids(database, tenant_id)
     items = []
     for path in store.meta.glob("*.json"):
         try:
@@ -200,8 +199,14 @@ def list_evidence(
         item_request_id = metadata.get("request_id")
         if request_id and item_request_id != request_id:
             continue
-        if allowed is not None and item_request_id not in allowed:
-            continue
+        if tenant_id is not None:
+            item_tenant_id = metadata.get("tenant_id")
+            if item_tenant_id is not None and item_tenant_id != tenant_id:
+                continue
+            if item_request_id is not None and item_request_id not in allowed:
+                continue
+            if item_tenant_id is None and item_request_id is None:
+                continue
         if source and source.lower() not in str(metadata.get("source", "")).lower():
             continue
         metadata.pop("path", None)
@@ -220,11 +225,17 @@ def _authorized_evidence(
         metadata = store.metadata(evidence_id)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="evidence not found") from exc
-    allowed = _tenant_request_ids(
-        database, None if principal.tenant_wildcard else principal.tenant_id
-    )
-    if allowed is not None and metadata.get("request_id") not in allowed:
-        raise HTTPException(status_code=404, detail="evidence not found")
+    tenant_id = None if principal.tenant_wildcard else principal.tenant_id
+    if tenant_id is not None:
+        allowed = _tenant_request_ids(database, tenant_id)
+        item_request_id = metadata.get("request_id")
+        item_tenant_id = metadata.get("tenant_id")
+        if item_tenant_id is not None and item_tenant_id != tenant_id:
+            raise HTTPException(status_code=404, detail="evidence not found")
+        if item_request_id is not None and item_request_id not in allowed:
+            raise HTTPException(status_code=404, detail="evidence not found")
+        if item_tenant_id is None and item_request_id is None:
+            raise HTTPException(status_code=404, detail="evidence not found")
     return metadata
 
 
@@ -249,14 +260,18 @@ def get_evidence_content(
     evidence_id = _safe_evidence_id(evidence_id)
     metadata = _authorized_evidence(evidence_id, database, principal)
     store = get_store()
-    path = store.object_path(metadata)
+    try:
+        path = store.object_path(metadata)
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(status_code=404, detail="evidence object missing") from exc
     if not path.exists():
         raise HTTPException(status_code=404, detail="evidence object missing")
     return FileResponse(
         path,
-        media_type=metadata.get("content_type", "application/octet-stream"),
+        media_type="application/octet-stream",
         filename=evidence_id,
-        content_disposition_type="inline",
+        content_disposition_type="attachment",
+        headers={"Content-Security-Policy": "sandbox"},
     )
 
 

@@ -106,7 +106,7 @@ def test_backup_detects_tampering_and_destination_inside_data(tmp_path) -> None:
 
     verification = verify_backup(tampered)
     assert verification.valid is False
-    assert any("sha256 mismatch" in error for error in verification.errors)
+    assert any("mismatch" in error for error in verification.errors)
     with pytest.raises(BackupError, match="verification failed"):
         restore_backup(tampered, settings=_alternate_settings(tmp_path))
 

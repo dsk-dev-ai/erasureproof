@@ -48,7 +48,7 @@ class S3Connector(BaseConnector):
     ) -> None:
         super().__init__(connector_id, system_id, config, evidence_store)
         self.backend = str(self.config.get("backend", "local")).lower()
-        self.root = Path(self.config.get("root", "./.erasureproof/bucket"))
+        self.root = Path(self.config.get("root", "./.erasureproof/bucket")).expanduser().resolve()
         self.bucket = self.config.get("bucket")
         self.prefix = str(self.config.get("prefix", ""))
         self.categories = {
@@ -70,6 +70,14 @@ class S3Connector(BaseConnector):
             self._client = boto3.client("s3", **self.config.get("client", {}))
         return self._client
 
+    def _local_path(self, key: str) -> Path:
+        candidate = (self.root / key).resolve()
+        try:
+            candidate.relative_to(self.root)
+        except ValueError as exc:
+            raise ValueError(f"object path escapes connector root: {key!r}") from exc
+        return candidate
+
     def _entries(self) -> list[tuple[str, datetime]]:
         if self.backend == "s3":
             if not self.bucket:
@@ -85,7 +93,11 @@ class S3Connector(BaseConnector):
             return []
         entries = []
         for path in sorted(self.root.rglob("*")):
-            if not path.is_file():
+            if path.is_symlink() or not path.is_file():
+                continue
+            try:
+                path.resolve().relative_to(self.root)
+            except ValueError:
                 continue
             relative = path.relative_to(self.root).as_posix()
             if self.prefix and not relative.startswith(self.prefix):
@@ -99,13 +111,13 @@ class S3Connector(BaseConnector):
         if self.backend == "s3":
             response = self._s3().get_object(Bucket=self.bucket, Key=key)
             return response["Body"].read(self.max_bytes)
-        return (self.root / key).read_bytes()[: self.max_bytes]
+        return self._local_path(key).read_bytes()[: self.max_bytes]
 
     def _write(self, key: str, data: bytes) -> None:
         if self.backend == "s3":
             self._s3().put_object(Bucket=self.bucket, Key=key, Body=data)
             return
-        path = self.root / key
+        path = self._local_path(key)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
 
@@ -113,7 +125,7 @@ class S3Connector(BaseConnector):
         if self.backend == "s3":
             self._s3().delete_object(Bucket=self.bucket, Key=key)
             return
-        (self.root / key).unlink(missing_ok=True)
+        self._local_path(key).unlink(missing_ok=True)
 
     # -- discovery ---------------------------------------------------------
 
@@ -251,7 +263,10 @@ class S3Connector(BaseConnector):
                 return True
             except Exception:
                 return False
-        return (self.root / key).exists()
+        try:
+            return self._local_path(key).exists()
+        except ValueError:
+            return False
 
     def snapshot(self, ref: ResourceRef, as_of: datetime | None = None) -> bytes:
         return self._read(str(ref.payload.get("path", ref.resource_id)))
