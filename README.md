@@ -22,7 +22,7 @@
 <p align="center">
   <a href="https://erasureproof.onrender.com/console">Live console</a> ·
   <a href="https://erasureproof.onrender.com/docs">API documentation</a> ·
-  <a href="https://github.com/dsk-dev-ai/erasureproof/releases/tag/v1.1.1">Release notes</a> ·
+  <a href="https://github.com/dsk-dev-ai/erasureproof/releases/tag/v1.1.2">Release notes</a> ·
   <a href="https://github.com/dsk-dev-ai/erasureproof/tree/main/sdk/python">Python SDK</a> ·
   <a href="https://github.com/dsk-dev-ai/erasureproof/blob/main/docs/API.md">API reference</a> ·
   <a href="https://github.com/dsk-dev-ai/erasureproof/blob/main/docs/DEPLOY_RENDER.md">Deployment guide</a>
@@ -678,9 +678,10 @@ and [`deploy/kubernetes`](deploy/kubernetes) for hardening notes.
 
 ## Release verification
 
-[`v1.1.1`](https://github.com/dsk-dev-ai/erasureproof/releases/tag/v1.1.1) is
-the current stable release. It packages the Neon Free migration and the first
-PyPI publication of the core CLI/API and Python SDK. The release gate is:
+[`v1.1.2`](https://github.com/dsk-dev-ai/erasureproof/releases/tag/v1.1.2) is
+the current stable release. It hardens deletion-status decisions, evidence
+isolation, path handling, and cross-process mutation safety. The release gate
+is:
 
 ```bash
 make check                 # ruff, pytest, console typecheck and production build

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "erasureproof"
-version = "1.1.1"
+version = "1.1.2"
 description = "Proof-of-erasure platform: find every copy of a person's data, prove deletion is complete, and issue signed attestations."
 readme = "README.md"
 requires-python = ">=3.10"

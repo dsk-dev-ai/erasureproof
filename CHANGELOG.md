@@ -6,6 +6,35 @@ All notable changes are recorded here. ErasureProof follows semantic versioning.
 
 No unreleased changes.
 
+## 1.1.2 — 2026-10-31
+
+A security and correctness patch for deletion-status decisions, evidence
+isolation, path handling, and concurrent mutation safety.
+
+### Fixed
+
+- A run can no longer report `COMPLETE` when discovery fails, verification
+  fails, or post-remediation discovery finds resources, flows, or backups that
+  were not in the plan.
+- Local S3-compatible object stores reject traversal and symlink escapes during
+  discovery and remediation.
+- Evidence metadata is scoped by request and tenant, so identical bytes from
+  different audits no longer overwrite each other's provenance.
+- Exposure evidence is tenant-scoped and visible to the tenant that created it.
+- Evidence IDs, digests, stored paths, and attestation request IDs are validated
+  before filesystem access.
+- Evidence downloads are served as sandboxed attachments instead of inline
+  active content.
+- Ledger appends and control-plane flow/restore mutations are serialised across
+  processes.
+- API key rotation issues the replacement and revokes the previous key in one
+  locked transaction.
+- Backup verification bounds manifest and member decompression.
+
+### Changed
+
+- Version bumped to 1.1.2 across the API, console, and SDK.
+
 ## 1.1.1 — 2026-10-30
 
 The hosted deployment now uses Neon Free PostgreSQL, and both the core package
