@@ -4,6 +4,7 @@
 decisions, evidence isolation, path handling, and concurrent mutation safety.
 
 - Release date: 2026-10-31
+- Published: 2026-10-31
 - Tag: [`v1.1.2`](https://github.com/dsk-dev-ai/erasureproof/releases/tag/v1.1.2)
 - API, console, and SDK version: `1.1.2`
 - License: Apache-2.0
@@ -19,8 +20,9 @@ decisions, evidence isolation, path handling, and concurrent mutation safety.
 | `make package-check` (both sdists/wheels, twine metadata) | Pass |
 | GitHub Actions `ci.yml` on `main` | Pass |
 | PyPI trusted-publishing workflow | Pass: both packages published |
-| PyPI clean install | Pending post-publish verification |
-| Hosted API | Pending post-deploy verification |
+| PyPI clean install | Pass: core demo `COMPLETE` with 13/13 checks; SDK imports as `1.1.2` |
+| Hosted API | `/version` and `/readyz` return `1.1.2`; all readiness checks `ok` |
+| GitHub release | [`v1.1.2`](https://github.com/dsk-dev-ai/erasureproof/releases/tag/v1.1.2) published |
 
 ## Release decision
 
