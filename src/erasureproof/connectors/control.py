@@ -7,6 +7,7 @@ data and which backups can restore it — and then disable/block them.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
@@ -27,8 +28,42 @@ from ..models.domain import (
 )
 from .base import BaseConnector
 
+try:  # POSIX
+    import fcntl as _fcntl
+except ImportError:  # pragma: no cover - Windows
+    _fcntl = None
+
+try:  # Windows
+    import msvcrt as _msvcrt
+except ImportError:  # pragma: no cover - POSIX
+    _msvcrt = None
+
 _LOCK = threading.Lock()
 _PHONE_RE = re.compile(r"[^0-9+]")
+
+
+@contextlib.contextmanager
+def _file_lock(path: Path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle = path.with_name(path.name + ".lock").open("a+b")
+    try:
+        if _fcntl is not None:
+            _fcntl.flock(handle.fileno(), _fcntl.LOCK_EX)
+        elif _msvcrt is not None:  # pragma: no cover - Windows
+            handle.seek(0, os.SEEK_END)
+            if handle.tell() == 0:
+                handle.write(b"\0")
+                handle.flush()
+            handle.seek(0)
+            _msvcrt.locking(handle.fileno(), _msvcrt.LK_LOCK, 1)
+        yield
+    finally:
+        if _fcntl is not None:
+            _fcntl.flock(handle.fileno(), _fcntl.LOCK_UN)
+        elif _msvcrt is not None:  # pragma: no cover - Windows
+            handle.seek(0)
+            _msvcrt.locking(handle.fileno(), _msvcrt.LK_UNLCK, 1)
+        handle.close()
 
 
 def _canonical(value: Any) -> str:
@@ -127,7 +162,7 @@ class ControlConnector(BaseConnector):
         return backups
 
     def disable_flow(self, flow: FlowRef) -> ActionResult:
-        with _LOCK:
+        with _LOCK, _file_lock(self.path):
             data = self._load()
             for entry in data.get("flows", []):
                 if str(entry.get("flow_id")) == flow.flow_id and str(
@@ -148,7 +183,7 @@ class ControlConnector(BaseConnector):
         )
 
     def block_restore(self, backup: BackupRef) -> ActionResult:
-        with _LOCK:
+        with _LOCK, _file_lock(self.path):
             data = self._load()
             for entry in data.get("backups", []):
                 if str(entry.get("backup_id")) == backup.backup_id and str(

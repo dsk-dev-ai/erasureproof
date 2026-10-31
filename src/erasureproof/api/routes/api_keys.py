@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import threading
 from datetime import timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
 from ...audit import record_audit
 from ...config import get_settings
@@ -17,6 +19,7 @@ from ..key_service import issue_api_key
 from ..schemas import ApiKeyCreate, ApiKeyCreated, ApiKeyOut
 
 router = APIRouter()
+_KEY_MUTATION_LOCK = threading.Lock()
 
 
 def _out(row: ApiKeyRow) -> ApiKeyOut:
@@ -70,6 +73,53 @@ def _active_key_count(session, tenant_id: str) -> int:
     )
 
 
+def _issue_in_session(
+    session: Session,
+    principal: Principal,
+    *,
+    tenant_id: str,
+    name: str,
+    role: str,
+    days: int | None,
+    action: str,
+    allow_one_over: bool = False,
+) -> tuple[ApiKeyRow, str]:
+    if role not in API_KEY_ROLES:
+        raise HTTPException(status_code=422, detail="invalid API key role")
+    expires_at = utcnow() + timedelta(days=days) if days is not None else None
+    settings = get_settings()
+    limit = settings.api_key_max_per_tenant + (1 if allow_one_over else 0)
+    if _active_key_count(session, tenant_id) >= limit:
+        raise HTTPException(
+            status_code=409,
+            detail=f"tenant already has {settings.api_key_max_per_tenant} active API keys",
+        )
+    row, token = issue_api_key(
+        session,
+        tenant_id=tenant_id,
+        name=name,
+        role=role,
+        subject=f"{principal.subject}:{name}",
+        created_by=principal.subject,
+        expires_at=expires_at,
+    )
+    record_audit(
+        session,
+        principal,
+        action=action,
+        resource_type="api_key",
+        resource_id=row.id,
+        tenant_id=tenant_id,
+        detail={
+            "name": name,
+            "prefix": row.key_prefix,
+            "role": role,
+            "expires_at": expires_at.isoformat() if expires_at else None,
+        },
+    )
+    return row, token
+
+
 def _issue(
     database: Database,
     principal: Principal,
@@ -81,41 +131,16 @@ def _issue(
     action: str,
     allow_one_over: bool = False,
 ) -> ApiKeyCreated:
-    if role not in API_KEY_ROLES:
-        raise HTTPException(status_code=422, detail="invalid API key role")
-    expires_at = (
-        utcnow() + timedelta(days=days) if days is not None else None
-    )
-    with database.session() as session:
-        settings = get_settings()
-        limit = settings.api_key_max_per_tenant + (1 if allow_one_over else 0)
-        if _active_key_count(session, tenant_id) >= limit:
-            raise HTTPException(
-                status_code=409,
-                detail=f"tenant already has {settings.api_key_max_per_tenant} active API keys",
-            )
-        row, token = issue_api_key(
+    with _KEY_MUTATION_LOCK, database.session() as session:
+        row, token = _issue_in_session(
             session,
+            principal,
             tenant_id=tenant_id,
             name=name,
             role=role,
-            subject=f"{principal.subject}:{name}",
-            created_by=principal.subject,
-            expires_at=expires_at,
-        )
-        record_audit(
-            session,
-            principal,
+            days=days,
             action=action,
-            resource_type="api_key",
-            resource_id=row.id,
-            tenant_id=tenant_id,
-            detail={
-                "name": name,
-                "prefix": row.key_prefix,
-                "role": role,
-                "expires_at": expires_at.isoformat() if expires_at else None,
-            },
+            allow_one_over=allow_one_over,
         )
         return _created(row, token)
 
@@ -192,8 +217,8 @@ def rotate_api_key(
     database: Database = Depends(get_db),
     principal: Principal = Depends(require_admin),
 ) -> ApiKeyCreated:
-    with database.session() as session:
-        row = session.get(ApiKeyRow, key_id)
+    with _KEY_MUTATION_LOCK, database.session() as session:
+        row = session.get(ApiKeyRow, key_id, with_for_update=True)
         if row is None or row.revoked_at is not None:
             raise HTTPException(status_code=404, detail="API key not found")
         principal.ensure_tenant(row.tenant_id)
@@ -201,34 +226,33 @@ def rotate_api_key(
         name = row.name
         role = row.role
         expires_at = row.expires_at
-
-    days = None
-    if expires_at is not None:
-        expires_at = expires_at if expires_at.tzinfo else expires_at.replace(tzinfo=timezone.utc)
-        days = max(1, (expires_at - utcnow()).days)
-    created = _issue(
-        database,
-        principal,
-        tenant_id=tenant_id,
-        name=name,
-        role=role,
-        days=days,
-        action="api_key.created",
-        allow_one_over=True,
-    )
-
-    with database.session() as session:
-        row = session.get(ApiKeyRow, key_id)
-        if row is not None and row.revoked_at is None:
-            row.revoked_at = utcnow()
-            row.revoked_by = principal.subject
-            record_audit(
-                session,
-                principal,
-                action="api_key.revoked",
-                resource_type="api_key",
-                resource_id=row.id,
-                tenant_id=tenant_id,
-                detail={"name": name, "prefix": row.key_prefix, "rotated": True},
+        days = None
+        if expires_at is not None:
+            expires_at = (
+                expires_at if expires_at.tzinfo else expires_at.replace(tzinfo=timezone.utc)
             )
-    return created
+            days = max(1, (expires_at - utcnow()).days)
+
+        replacement, token = _issue_in_session(
+            session,
+            principal,
+            tenant_id=tenant_id,
+            name=name,
+            role=role,
+            days=days,
+            action="api_key.created",
+            allow_one_over=True,
+        )
+
+        row.revoked_at = utcnow()
+        row.revoked_by = principal.subject
+        record_audit(
+            session,
+            principal,
+            action="api_key.revoked",
+            resource_type="api_key",
+            resource_id=row.id,
+            tenant_id=tenant_id,
+            detail={"name": name, "prefix": row.key_prefix, "rotated": True},
+        )
+        return _created(replacement, token)

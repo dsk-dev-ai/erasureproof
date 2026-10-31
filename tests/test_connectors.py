@@ -1,17 +1,21 @@
 from __future__ import annotations
 
 import json
+import multiprocessing
 import os
 import sqlite3
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from erasureproof.connectors.control import ControlConnector
 from erasureproof.connectors.s3 import LocalObjectConnector
 from erasureproof.connectors.sql import SQLConnector
 from erasureproof.evidence.store import EvidenceStore
 from erasureproof.models.domain import (
     Action,
     Category,
+    FlowRef,
     Identifier,
     IdentifierType,
     ResourceRef,
@@ -22,6 +26,21 @@ from erasureproof.models.domain import (
 
 NOW = datetime.now(timezone.utc)
 AUDIT_AT = NOW + timedelta(hours=1)
+
+
+def _disable_flow_in_process(path: str, flow_id: str, barrier) -> None:
+    connector = ControlConnector("con_control", "control", {"path": path})
+    original_save = connector._save
+
+    def slow_save(data):
+        time.sleep(0.2)
+        original_save(data)
+
+    connector._save = slow_save
+    barrier.wait(timeout=10)
+    result = connector.disable_flow(FlowRef("control", flow_id))
+    if not result.success:
+        raise SystemExit(1)
 
 
 def _subject() -> SubjectGraph:
@@ -192,3 +211,40 @@ def test_local_object_connector_blocks_path_escape_and_symlinks(tmp_path) -> Non
     result = connector.remediate(bad, Action.DELETE)
     assert result.success is False
     assert outside.exists()
+
+
+def test_control_connector_serialises_cross_process_updates(tmp_path) -> None:
+    path = tmp_path / "control.json"
+    path.write_text(
+        json.dumps(
+            {
+                "flows": [
+                    {"flow_id": "flow_1", "system_id": "control", "status": "ACTIVE"},
+                    {"flow_id": "flow_2", "system_id": "control", "status": "ACTIVE"},
+                ],
+                "backups": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    context = multiprocessing.get_context()
+    barrier = context.Barrier(2)
+    workers = [
+        context.Process(
+            target=_disable_flow_in_process,
+            args=(str(path), flow_id, barrier),
+        )
+        for flow_id in ("flow_1", "flow_2")
+    ]
+    for worker in workers:
+        worker.start()
+    for worker in workers:
+        worker.join(timeout=30)
+        assert worker.exitcode == 0
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert {flow["flow_id"]: flow["status"] for flow in data["flows"]} == {
+        "flow_1": "DISABLED",
+        "flow_2": "DISABLED",
+    }
